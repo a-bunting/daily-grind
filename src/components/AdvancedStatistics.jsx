@@ -103,7 +103,8 @@ export const AdvancedStatistics = () => {
       const completedCount = tasksForDate.filter(task => getProgress(task, date) >= 100).length;
       
       return {
-        date: dateUtils.formatDisplayDate(date).split(',')[0], // Short date
+        date: `${date.getMonth() + 1}/${date.getDate()}`, // MM/DD format
+        fullDate: dateUtils.formatDisplayDate(date),
         progress: Math.round(dayProgress),
         completed: completedCount,
         total: tasksForDate.filter(task => isTaskScheduledForDate(task, date)).length
@@ -260,18 +261,18 @@ export const AdvancedStatistics = () => {
     const maxValue = Math.max(...data.map(d => d[dataKey]));
     
     return (
-      <div className="flex items-end gap-2 h-48 p-4">
+      <div className="flex items-end gap-1 h-40 p-3 bg-gray-50 rounded-md">
         {data.map((item, index) => (
-          <div key={index} className="flex-1 flex flex-col items-center gap-2">
+          <div key={index} className="flex-1 flex flex-col items-center gap-1">
             <div 
-              className="w-full bg-gradient-to-t rounded-t-md transition-all duration-500 ease-out min-h-1"
+              className="w-full bg-gradient-to-t rounded-t-sm transition-all duration-500 ease-out min-h-1"
               style={{ 
                 height: `${(item[dataKey] / maxValue) * 100}%`,
                 backgroundImage: `linear-gradient(to top, ${color}, ${color}90)`
               }}
             />
             <span className="text-xs text-gray-600 text-center leading-tight">
-              {item.date ? item.date.slice(-5) : item.name?.slice(0, 8)}
+              {item.date || `${index + 1}`}
             </span>
           </div>
         ))}
@@ -288,11 +289,11 @@ export const AdvancedStatistics = () => {
     }).join(' ');
 
     return (
-      <div className="h-32 relative">
+      <div className="h-28 relative bg-gray-50 rounded-md p-2">
         <svg viewBox="0 0 100 100" className="w-full h-full">
           <defs>
             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+              <stop offset="0%" stopColor={color} stopOpacity="0.2"/>
               <stop offset="100%" stopColor={color} stopOpacity="0"/>
             </linearGradient>
           </defs>
@@ -305,7 +306,7 @@ export const AdvancedStatistics = () => {
             points={points}
             fill="none"
             stroke={color}
-            strokeWidth="2"
+            strokeWidth="1.5"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -315,18 +316,18 @@ export const AdvancedStatistics = () => {
   };
 
   const StatCard = ({ icon: Icon, title, value, subtitle, color, children }) => (
-    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}20` }}>
-          <Icon size={20} style={{ color }} />
+    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-1.5 rounded-md" style={{ backgroundColor: `${color}20` }}>
+          <Icon size={16} style={{ color }} />
         </div>
         <div>
-          <h4 className="font-semibold text-gray-800 text-sm">{title}</h4>
-          <p className="text-xs text-gray-600">{subtitle}</p>
+          <h4 className="font-semibold text-gray-800 text-xs">{title}</h4>
+          <p className="text-xs text-gray-500">{subtitle}</p>
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-xl font-bold text-gray-900">{value}</p>
         {children}
       </div>
     </div>
@@ -348,9 +349,9 @@ export const AdvancedStatistics = () => {
   );
 
   const renderOverviewTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Key Stats Grid */}
-      <div className={`grid gap-4 ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}>
+      <div className={`grid gap-3 ${isMobile ? 'grid-cols-2' : 'grid-cols-4'}`}>
         <StatCard
           icon={Target}
           title="Completion Rate"
@@ -358,7 +359,7 @@ export const AdvancedStatistics = () => {
           subtitle={`${overviewStats.completedTasks}/${overviewStats.totalTasks} tasks`}
           color={colors.primary}
         >
-          <CircularProgress value={overviewStats.completionRate} size={60} color={colors.primary} />
+          <CircularProgress value={overviewStats.completionRate} size={50} color={colors.primary} />
         </StatCard>
         <StatCard
           icon={Zap}
@@ -367,7 +368,7 @@ export const AdvancedStatistics = () => {
           subtitle="Consecutive days >50%"
           color={colors.accent}
         >
-          <div className="text-3xl">🔥</div>
+          <div className="text-2xl">🔥</div>
         </StatCard>
         <StatCard
           icon={Clock}
@@ -376,7 +377,7 @@ export const AdvancedStatistics = () => {
           subtitle={`${Math.round(overviewStats.timeEfficiency)}% efficiency`}
           color="#10B981"
         >
-          <CircularProgress value={overviewStats.timeEfficiency} size={60} color="#10B981" />
+          <CircularProgress value={overviewStats.timeEfficiency} size={50} color="#10B981" />
         </StatCard>
         <StatCard
           icon={BarChart3}
@@ -385,28 +386,28 @@ export const AdvancedStatistics = () => {
           subtitle="Tasks completed/day"
           color="#F59E0B"
         >
-          <div className="text-2xl">📊</div>
+          <div className="text-xl">📊</div>
         </StatCard>
       </div>
 
       {/* Recent Trend Chart */}
-      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-        <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <TrendingUp size={18} />
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <TrendingUp size={16} />
           Daily Progress Trend ({parseInt(timeRange)} days)
         </h4>
         <TrendLineChart data={trendData.slice(-14)} dataKey="progress" color={colors.primary} />
-        <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-gray-800">{Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7)}%</div>
+        <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+          <div className="bg-gray-50 rounded-md p-2">
+            <div className="text-lg font-bold text-gray-800">{Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7)}%</div>
             <div className="text-xs text-gray-600">7-day avg</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-gray-800">{trendData.slice(-1)[0]?.progress || 0}%</div>
+          <div className="bg-gray-50 rounded-md p-2">
+            <div className="text-lg font-bold text-gray-800">{trendData.slice(-1)[0]?.progress || 0}%</div>
             <div className="text-xs text-gray-600">Today</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-gray-800">{Math.max(...trendData.map(d => d.progress))}%</div>
+          <div className="bg-gray-50 rounded-md p-2">
+            <div className="text-lg font-bold text-gray-800">{Math.max(...trendData.map(d => d.progress))}%</div>
             <div className="text-xs text-gray-600">Best day</div>
           </div>
         </div>
@@ -415,58 +416,58 @@ export const AdvancedStatistics = () => {
   );
 
   const renderTrendsTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-        <h4 className="font-semibold text-gray-800 mb-4">Daily Progress Trend</h4>
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3">Daily Progress Trend</h4>
         <SimpleBarChart data={trendData.slice(-21)} dataKey="progress" color={colors.primary} />
       </div>
 
-      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-        <h4 className="font-semibold text-gray-800 mb-4">Task Completion Count</h4>
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3">Task Completion Count</h4>
         <SimpleBarChart data={trendData.slice(-21)} dataKey="completed" color={colors.accent} />
       </div>
 
       {/* Trend Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 text-center">
-          <Activity size={24} className="mx-auto mb-2" style={{ color: colors.primary }} />
-          <div className="text-xl font-bold text-gray-800">
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
+          <Activity size={20} className="mx-auto mb-2" style={{ color: colors.primary }} />
+          <div className="text-lg font-bold text-gray-800">
             {Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7)}%
           </div>
-          <div className="text-sm text-gray-600">Weekly Average</div>
+          <div className="text-xs text-gray-600">Weekly Average</div>
         </div>
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 text-center">
-          <TrendingUp size={24} className="mx-auto mb-2" style={{ color: colors.accent }} />
-          <div className="text-xl font-bold text-gray-800">
+        <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
+          <TrendingUp size={20} className="mx-auto mb-2" style={{ color: colors.accent }} />
+          <div className="text-lg font-bold text-gray-800">
             {trendData.slice(-7).filter(d => d.progress > trendData.slice(-14, -7).reduce((acc, d) => acc + d.progress, 0) / 7).length}
           </div>
-          <div className="text-sm text-gray-600">Days Above Average</div>
+          <div className="text-xs text-gray-600">Days Above Average</div>
         </div>
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20 text-center">
-          <Trophy size={24} className="mx-auto mb-2" style={{ color: '#F59E0B' }} />
-          <div className="text-xl font-bold text-gray-800">
+        <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
+          <Trophy size={20} className="mx-auto mb-2" style={{ color: '#F59E0B' }} />
+          <div className="text-lg font-bold text-gray-800">
             {Math.max(...trendData.map(d => d.progress))}%
           </div>
-          <div className="text-sm text-gray-600">Best Performance</div>
+          <div className="text-xs text-gray-600">Best Performance</div>
         </div>
       </div>
     </div>
   );
 
   const renderCategoriesTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-        <h4 className="font-semibold text-gray-800 mb-4">Category Performance</h4>
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3">Category Performance</h4>
         <div className="space-y-3">
           {categoryData.map((category, index) => (
-            <div key={index} className="flex items-center gap-4">
-              <div className="w-24 text-sm font-medium text-gray-700 truncate">
+            <div key={index} className="flex items-center gap-3">
+              <div className="w-20 text-xs font-medium text-gray-700 truncate">
                 {category.name}
               </div>
               <div className="flex-1">
-                <ProgressBar value={category.completion} color={category.color} height="h-4" />
+                <ProgressBar value={category.completion} color={category.color} height="h-3" />
               </div>
-              <div className="w-12 text-sm font-bold text-gray-800 text-right">
+              <div className="w-10 text-xs font-bold text-gray-800 text-right">
                 {category.completion}%
               </div>
             </div>
@@ -474,21 +475,21 @@ export const AdvancedStatistics = () => {
         </div>
       </div>
 
-      <div className="grid gap-4">
+      <div className="space-y-3">
         <h4 className="font-semibold text-gray-800">Category Breakdown</h4>
         {categoryData.map((category, index) => (
-          <div key={index} className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
+          <div key={index} className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
                 <div 
-                  className="w-4 h-4 rounded-full" 
+                  className="w-3 h-3 rounded-full" 
                   style={{ backgroundColor: category.color }}
                 ></div>
-                <span className="font-medium text-gray-800">{category.name}</span>
+                <span className="font-medium text-gray-800 text-sm">{category.name}</span>
               </div>
-              <CircularProgress value={category.completion} size={50} color={category.color} />
+              <CircularProgress value={category.completion} size={40} color={category.color} />
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
               <div>
                 <span className="font-medium">Completed:</span> {category.completed}/{category.total}
               </div>
@@ -505,31 +506,31 @@ export const AdvancedStatistics = () => {
   );
 
   const renderPerformanceTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-        <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Trophy size={18} />
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <Trophy size={16} />
           Top Performing Tasks
         </h4>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {topTasks.map((task, index) => (
-            <div key={index} className="flex items-center gap-4 p-3 bg-white/20 rounded-lg">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm"
+            <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs"
                    style={{ backgroundColor: colors.primary, color: 'white' }}>
-                #{index + 1}
+                {index + 1}
               </div>
-              <div className="flex-1">
-                <div className="font-medium text-gray-800 truncate">{task.name}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-800 truncate text-sm">{task.name}</div>
                 <div className="text-xs text-gray-600">
                   {task.completed}/{task.total} completed
                   {task.timeSpent > 0 && ` • ${task.timeSpent}h`}
                 </div>
                 <div className="mt-1">
-                  <ProgressBar value={task.completion} color={task.color} height="h-2" />
+                  <ProgressBar value={task.completion} color={task.color} height="h-1.5" />
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-lg" style={{ color: colors.primary }}>
+                <div className="font-bold text-sm" style={{ color: colors.primary }}>
                   {task.completion}%
                 </div>
                 <div className="text-xs text-gray-600">
@@ -546,23 +547,23 @@ export const AdvancedStatistics = () => {
   return (
     <div className="max-w-7xl">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <button 
           onClick={() => setViewMode('day')} 
           className="p-2 hover:bg-white/20 rounded-lg transition-colors"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={18} />
         </button>
-        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <BarChart3 size={24} />
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <BarChart3 size={20} />
           Advanced Statistics
         </h3>
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-between mb-6 ${isMobile ? 'flex-col gap-4' : ''}`}>
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3' : ''}`}>
         {/* Time Range Selector */}
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           {[
             { value: '7', label: '7D' },
             { value: '30', label: '30D' },
@@ -572,7 +573,7 @@ export const AdvancedStatistics = () => {
             <button
               key={range.value}
               onClick={() => setTimeRange(range.value)}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors text-sm ${
+              className={`px-3 py-1 rounded-md font-medium transition-colors text-sm ${
                 timeRange === range.value
                   ? 'text-white'
                   : 'text-gray-600 hover:text-gray-800 hover:bg-white/30'
@@ -585,7 +586,7 @@ export const AdvancedStatistics = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <TabButton id="overview" label="Overview" icon={BarChart3} />
           <TabButton id="trends" label="Trends" icon={TrendingUp} />
           <TabButton id="categories" label="Categories" icon={PieChart} />
