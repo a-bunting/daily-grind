@@ -4,30 +4,31 @@ import { useTaskProgress } from '../hooks/useTaskProgress';
 import { useTaskScheduling } from '../hooks/useTaskScheduling';
 import { dateUtils } from '../utils/index';
 import { ArrowLeft, TrendingUp, Clock, Target, BarChart3, PieChart, Trophy, Zap, Activity } from 'lucide-react';
+import { achievementDefinitions, calculateAchievementValue } from '../data/AchievementDefinitions';
 
 export const AdvancedStatistics = () => {
   const { 
     tasks, 
     categories, 
-    sections, 
     currentDate, 
     setViewMode, 
     colors, 
-    isMobile, 
-    isTablet 
+    isMobile,
+    isTablet
   } = useApp();
   
   const { getProgress, getDayProgress, getDateProgress } = useTaskProgress();
   const { isTaskScheduledForDate, getTasksWithDataForDate } = useTaskScheduling();
   
-  const [timeRange, setTimeRange] = useState('30'); // 7, 30, 90, 365 days
-  const [selectedTab, setSelectedTab] = useState('overview'); // overview, trends, categories, performance
+  const [timeRange, setTimeRange] = useState(30); // Now using number instead of string
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [hoveredAchievement, setHoveredAchievement] = useState(null);
 
   // Calculate date range based on selection
   const dateRange = useMemo(() => {
     const endDate = new Date(currentDate);
     const startDate = new Date(currentDate);
-    startDate.setDate(startDate.getDate() - parseInt(timeRange));
+    startDate.setDate(startDate.getDate() - timeRange);
     
     const dates = [];
     const current = new Date(startDate);
@@ -44,26 +45,24 @@ export const AdvancedStatistics = () => {
     let completedTasks = 0;
     let totalTimeSpent = 0;
     let totalTimeTargeted = 0;
-    let streakDays = 0;
     let currentStreak = 0;
     
     // Check for current streak (consecutive days with >50% completion)
     const today = new Date();
     let checkDate = new Date(today);
     let streakActive = true;
+    let streakDays = 0;
     
     while (streakActive && streakDays < 365) {
       const dayProgress = getDayProgress(checkDate);
       if (dayProgress >= 50) {
-        if (dateUtils.getDateString(checkDate) === dateUtils.getDateString(today)) {
-          currentStreak++;
-        }
         streakDays++;
         checkDate.setDate(checkDate.getDate() - 1);
       } else {
         streakActive = false;
       }
     }
+    currentStreak = streakDays;
 
     dateRange.forEach(date => {
       const tasksForDate = getTasksWithDataForDate(date);
@@ -87,13 +86,13 @@ export const AdvancedStatistics = () => {
       totalTasks,
       completedTasks,
       completionRate: totalTasks > 0 ? (completedTasks / totalTasks * 100) : 0,
-      totalTimeSpent: Math.round(totalTimeSpent / 3600 * 10) / 10, // Hours
-      totalTimeTargeted: Math.round(totalTimeTargeted / 3600 * 10) / 10, // Hours
+      totalTimeSpent: Math.round(totalTimeSpent / 3600 * 10) / 10,
+      totalTimeTargeted: Math.round(totalTimeTargeted / 3600 * 10) / 10,
       timeEfficiency: totalTimeTargeted > 0 ? (totalTimeSpent / totalTimeTargeted * 100) : 0,
       currentStreak: currentStreak,
       averageDaily: totalTasks > 0 ? (completedTasks / dateRange.length) : 0
     };
-  }, [dateRange, tasks, getProgress, getDayProgress, getTasksWithDataForDate, isTaskScheduledForDate, getDateProgress]);
+  }, [dateRange, getDayProgress, getTasksWithDataForDate, isTaskScheduledForDate, getProgress, getDateProgress]);
 
   // Daily Progress Trend Data
   const trendData = useMemo(() => {
@@ -103,8 +102,7 @@ export const AdvancedStatistics = () => {
       const completedCount = tasksForDate.filter(task => getProgress(task, date) >= 100).length;
       
       return {
-        date: `${date.getMonth() + 1}/${date.getDate()}`, // MM/DD format
-        fullDate: dateUtils.formatDisplayDate(date),
+        date: `${date.getMonth() + 1}/${date.getDate()}`,
         progress: Math.round(dayProgress),
         completed: completedCount,
         total: tasksForDate.filter(task => isTaskScheduledForDate(task, date)).length
@@ -126,7 +124,6 @@ export const AdvancedStatistics = () => {
       };
     });
     
-    // Add uncategorized
     categoryStats['uncategorized'] = {
       name: 'Uncategorized',
       color: '#6B7280',
@@ -162,10 +159,10 @@ export const AdvancedStatistics = () => {
         completion: cat.total > 0 ? Math.round(cat.completed / cat.total * 100) : 0,
         timeSpent: Math.round(cat.timeSpent * 10) / 10
       }));
-  }, [dateRange, categories, tasks, getProgress, getDateProgress, getTasksWithDataForDate, isTaskScheduledForDate]);
+  }, [dateRange, categories, getProgress, getDateProgress, getTasksWithDataForDate, isTaskScheduledForDate]);
 
-  // Top Performing Tasks
-  const topTasks = useMemo(() => {
+  // Top and Bottom Performing Tasks
+  const performanceTasks = useMemo(() => {
     const taskStats = {};
     
     tasks.forEach(task => {
@@ -195,7 +192,7 @@ export const AdvancedStatistics = () => {
       });
     });
 
-    return Object.values(taskStats)
+    const processedTasks = Object.values(taskStats)
       .filter(task => task.total > 0)
       .map(task => ({
         ...task,
@@ -203,11 +200,97 @@ export const AdvancedStatistics = () => {
         avgProgress: task.total > 0 ? Math.round(task.avgProgress / task.total) : 0,
         timeSpent: Math.round(task.timeSpent * 10) / 10
       }))
-      .sort((a, b) => b.completion - a.completion)
-      .slice(0, 10);
+      .sort((a, b) => b.completion - a.completion);
+
+    return {
+      top: processedTasks.slice(0, 5),
+      bottom: processedTasks.slice(-5).reverse()
+    };
   }, [dateRange, tasks, getProgress, getDateProgress, isTaskScheduledForDate]);
 
-  // Custom Chart Components
+  // All-time data for achievements
+  const allTimeData = useMemo(() => {
+    const endDate = new Date(currentDate);
+    const startDate = new Date(currentDate);
+    startDate.setDate(startDate.getDate() - 365);
+    
+    const dates = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      dates.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    const allTimeTrend = dates.map(date => {
+      const dayProgress = getDayProgress(date);
+      return {
+        progress: Math.round(dayProgress)
+      };
+    });
+
+    let totalTimeSpent = 0;
+    dates.forEach(date => {
+      const tasksForDate = getTasksWithDataForDate(date);
+      tasksForDate.forEach(task => {
+        const dateProgress = getDateProgress(task, date);
+        if (task.taskType === 'time') {
+          totalTimeSpent += dateProgress.timeSpent || 0;
+        }
+      });
+    });
+
+    return {
+      trendData: allTimeTrend,
+      totalTimeSpent: Math.round(totalTimeSpent / 3600 * 10) / 10,
+      perfectDays: allTimeTrend.filter(d => d.progress === 100).length
+    };
+  }, [currentDate, getDayProgress, getTasksWithDataForDate, getDateProgress]);
+
+  // Achievement definitions
+  // (Now imported from achievementsData.js)
+
+  // Achievements System
+  const achievementProgress = useMemo(() => {
+    const progressData = achievementDefinitions.map(definition => {
+      const currentValue = calculateAchievementValue(
+        definition.id, 
+        allTimeData, 
+        overviewStats, 
+        categoryData, 
+        tasks, 
+        dateRange, 
+        getProgress, 
+        getDateProgress
+      );
+
+      let achievedLevel = 0;
+      let nextLevel = null;
+      
+      for (const level of definition.levels) {
+        if (currentValue >= level.target) {
+          achievedLevel = level.level;
+        } else {
+          nextLevel = level;
+          break;
+        }
+      }
+
+      return {
+        ...definition,
+        currentValue,
+        achievedLevel,
+        nextLevel: nextLevel || definition.levels[definition.levels.length - 1],
+        maxLevel: definition.levels.length,
+        isMaxed: achievedLevel === definition.levels.length
+      };
+    });
+
+    const achieved = progressData.filter(a => a.achievedLevel > 0);
+    
+    return { all: progressData, achieved };
+  }, [allTimeData, overviewStats.currentStreak]);
+
+  // Helper Components
   const ProgressBar = ({ value, color = colors.primary, height = 'h-2' }) => (
     <div className={`bg-gray-200 rounded-full ${height} overflow-hidden`}>
       <div 
@@ -223,7 +306,6 @@ export const AdvancedStatistics = () => {
   const CircularProgress = ({ value, size = 80, strokeWidth = 8, color = colors.primary }) => {
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
-    const strokeDasharray = circumference;
     const strokeDashoffset = circumference - (value / 100) * circumference;
 
     return (
@@ -244,7 +326,7 @@ export const AdvancedStatistics = () => {
             stroke={color}
             strokeWidth={strokeWidth}
             fill="none"
-            strokeDasharray={strokeDasharray}
+            strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
             className="transition-all duration-500 ease-out"
@@ -257,78 +339,22 @@ export const AdvancedStatistics = () => {
     );
   };
 
-  const SimpleBarChart = ({ data, dataKey, color = colors.primary, height = 200 }) => {
-    const maxValue = Math.max(...data.map(d => d[dataKey]));
-    
-    return (
-      <div className="flex items-end gap-1 h-40 p-3 bg-gray-50 rounded-md">
-        {data.map((item, index) => (
-          <div key={index} className="flex-1 flex flex-col items-center gap-1">
-            <div 
-              className="w-full bg-gradient-to-t rounded-t-sm transition-all duration-500 ease-out min-h-1"
-              style={{ 
-                height: `${(item[dataKey] / maxValue) * 100}%`,
-                backgroundImage: `linear-gradient(to top, ${color}, ${color}90)`
-              }}
-            />
-            <span className="text-xs text-gray-600 text-center leading-tight">
-              {item.date || `${index + 1}`}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const TrendLineChart = ({ data, dataKey, color = colors.primary }) => {
-    const maxValue = Math.max(...data.map(d => d[dataKey]));
-    const points = data.map((item, index) => {
-      const x = (index / (data.length - 1)) * 100;
-      const y = 100 - (item[dataKey] / maxValue) * 100;
-      return `${x},${y}`;
-    }).join(' ');
-
-    return (
-      <div className="h-28 relative bg-gray-50 rounded-md p-2">
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          <defs>
-            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={color} stopOpacity="0.2"/>
-              <stop offset="100%" stopColor={color} stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-          <polyline
-            points={`0,100 ${points} 100,100`}
-            fill="url(#areaGradient)"
-            stroke="none"
-          />
-          <polyline
-            points={points}
-            fill="none"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        </svg>
-      </div>
-    );
-  };
-
   const StatCard = ({ icon: Icon, title, value, subtitle, color, children }) => (
-    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm h-full">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-md" style={{ backgroundColor: `${color}20` }}>
           <Icon size={16} style={{ color }} />
         </div>
-        <div>
+        <div className="flex-1">
           <h4 className="font-semibold text-gray-800 text-xs">{title}</h4>
           <p className="text-xs text-gray-500">{subtitle}</p>
         </div>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between">
         <p className="text-xl font-bold text-gray-900">{value}</p>
-        {children}
+        <div className="flex-shrink-0">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -336,18 +362,25 @@ export const AdvancedStatistics = () => {
   const TabButton = ({ id, label, icon: Icon }) => (
     <button
       onClick={() => setSelectedTab(id)}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all text-sm ${
+      className={`flex items-center justify-center gap-2 rounded-lg font-medium transition-all ${
+        isMobile 
+          ? 'px-3 py-2 text-xs' 
+          : 'px-4 py-2 text-sm'
+      } ${
         selectedTab === id
           ? 'text-white shadow-lg'
           : 'text-gray-600 hover:text-gray-800 hover:bg-white/30'
       }`}
       style={selectedTab === id ? { backgroundColor: colors.primary } : {}}
     >
-      <Icon size={16} />
-      {!isMobile && label}
+      <Icon size={isMobile ? 14 : 16} />
+      {(!isMobile || selectedTab === id) && (
+        <span className={isMobile ? 'text-xs' : 'text-sm'}>{label}</span>
+      )}
     </button>
   );
 
+  // Render Functions
   const renderOverviewTab = () => (
     <div className="space-y-4">
       {/* Key Stats Grid */}
@@ -390,41 +423,61 @@ export const AdvancedStatistics = () => {
         </StatCard>
       </div>
 
-      {/* Recent Trend Chart */}
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+      {/* Performance Section */}
+      <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
         <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <TrendingUp size={16} />
-          Daily Progress Trend ({parseInt(timeRange)} days)
+          <Trophy size={16} />
+          Task Performance
         </h4>
-        <TrendLineChart data={trendData.slice(-14)} dataKey="progress" color={colors.primary} />
-        <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <div className="bg-gray-50 rounded-md p-2">
-            <div className="text-lg font-bold text-gray-800">{Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7)}%</div>
-            <div className="text-xs text-gray-600">7-day avg</div>
+        <div className={`grid gap-3 md:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {/* Top Performers */}
+          <div>
+            <h5 className={`font-medium text-green-700 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>🏆 Top Performers</h5>
+            <div className="space-y-2">
+              {performanceTasks.top.map((task, index) => (
+                <div key={index} className={`flex items-center gap-2 p-2 bg-green-50 rounded-lg ${isMobile ? 'text-sm' : ''}`}>
+                  <div className={`flex items-center justify-center rounded-full font-bold text-xs text-white ${
+                    isMobile ? 'w-4 h-4' : 'w-5 h-5'
+                  }`}
+                       style={{ backgroundColor: '#10B981' }}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium text-gray-800 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>{task.name}</div>
+                    <div className="text-xs text-gray-600">{task.completed}/{task.total} tasks</div>
+                  </div>
+                  <div className={`font-bold text-green-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    {task.completion}%
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="bg-gray-50 rounded-md p-2">
-            <div className="text-lg font-bold text-gray-800">{trendData.slice(-1)[0]?.progress || 0}%</div>
-            <div className="text-xs text-gray-600">Today</div>
-          </div>
-          <div className="bg-gray-50 rounded-md p-2">
-            <div className="text-lg font-bold text-gray-800">{Math.max(...trendData.map(d => d.progress))}%</div>
-            <div className="text-xs text-gray-600">Best day</div>
+
+          {/* Bottom Performers */}
+          <div>
+            <h5 className={`font-medium text-red-700 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>📈 Needs Attention</h5>
+            <div className="space-y-2">
+              {performanceTasks.bottom.map((task, index) => (
+                <div key={index} className={`flex items-center gap-2 p-2 bg-red-50 rounded-lg ${isMobile ? 'text-sm' : ''}`}>
+                  <div className={`flex items-center justify-center rounded-full font-bold text-xs text-white ${
+                    isMobile ? 'w-4 h-4' : 'w-5 h-5'
+                  }`}
+                       style={{ backgroundColor: '#EF4444' }}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium text-gray-800 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>{task.name}</div>
+                    <div className="text-xs text-gray-600">{task.completed}/{task.total} tasks</div>
+                  </div>
+                  <div className={`font-bold text-red-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    {task.completion}%
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-
-  const renderTrendsTab = () => (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <h4 className="font-semibold text-gray-800 mb-3">Daily Progress Trend</h4>
-        <SimpleBarChart data={trendData.slice(-21)} dataKey="progress" color={colors.primary} />
-      </div>
-
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <h4 className="font-semibold text-gray-800 mb-3">Task Completion Count</h4>
-        <SimpleBarChart data={trendData.slice(-21)} dataKey="completed" color={colors.accent} />
       </div>
 
       {/* Trend Summary */}
@@ -432,113 +485,358 @@ export const AdvancedStatistics = () => {
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
           <Activity size={20} className="mx-auto mb-2" style={{ color: colors.primary }} />
           <div className="text-lg font-bold text-gray-800">
-            {Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7)}%
+            {trendData.length > 0 ? Math.round(trendData.slice(-7).reduce((acc, d) => acc + d.progress, 0) / 7) : 0}%
           </div>
           <div className="text-xs text-gray-600">Weekly Average</div>
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
           <TrendingUp size={20} className="mx-auto mb-2" style={{ color: colors.accent }} />
           <div className="text-lg font-bold text-gray-800">
-            {trendData.slice(-7).filter(d => d.progress > trendData.slice(-14, -7).reduce((acc, d) => acc + d.progress, 0) / 7).length}
+            {trendData.length > 0 ? trendData.slice(-7).filter(d => d.progress > 50).length : 0}
           </div>
-          <div className="text-xs text-gray-600">Days Above Average</div>
+          <div className="text-xs text-gray-600">Good Days (>50%)</div>
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
           <Trophy size={20} className="mx-auto mb-2" style={{ color: '#F59E0B' }} />
           <div className="text-lg font-bold text-gray-800">
-            {Math.max(...trendData.map(d => d.progress))}%
+            {trendData.length > 0 ? Math.max(...trendData.map(d => d.progress)) : 0}%
           </div>
           <div className="text-xs text-gray-600">Best Performance</div>
         </div>
       </div>
+
+      {/* Recent Achievements */}
+      {achievementProgress.achieved.length > 0 && (
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <Trophy size={16} />
+            Recent Achievements
+          </h4>
+          <div className="grid gap-2 md:grid-cols-2">
+            {achievementProgress.achieved.slice(0, 4).map((achievement) => (
+              <div key={achievement.id} className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
+                <div className="text-lg">{achievement.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800 text-sm">{achievement.name}</div>
+                  <div className="text-xs text-gray-600 truncate">Level {achievement.achievedLevel}</div>
+                </div>
+                <div className="text-sm">🏆</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
   const renderCategoriesTab = () => (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <h4 className="font-semibold text-gray-800 mb-3">Category Performance</h4>
-        <div className="space-y-3">
+      {/* Category Summary Boxes - Better Mobile/Tablet Response */}
+      <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm">Category Overview</h4>
+        <div className={`grid gap-2 md:gap-3 ${
+          isMobile 
+            ? 'grid-cols-2' 
+            : categoryData.length <= 3 
+              ? 'grid-cols-3' 
+              : categoryData.length <= 4 
+                ? 'grid-cols-4' 
+                : categoryData.length <= 6 
+                  ? 'grid-cols-3 lg:grid-cols-6' 
+                  : 'grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+        }`}>
           {categoryData.map((category, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="w-20 text-xs font-medium text-gray-700 truncate">
-                {category.name}
+            <div key={index} className={`bg-gradient-to-br rounded-lg border-2 text-center relative overflow-hidden ${
+              isMobile ? 'p-2' : 'p-3'
+            }`}
+                 style={{ 
+                   borderColor: category.color,
+                   background: `linear-gradient(135deg, ${category.color}15 0%, ${category.color}25 100%)`
+                 }}>
+              {/* Background pattern */}
+              <div className="absolute inset-0 opacity-10"
+                   style={{ 
+                     backgroundImage: `radial-gradient(circle at 20% 50%, ${category.color} 2px, transparent 2px), radial-gradient(circle at 80% 50%, ${category.color} 1px, transparent 1px)`,
+                     backgroundSize: '15px 15px'
+                   }}></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                <div 
+                  className={`rounded-full mx-auto mb-2 shadow-lg border-2 border-white ${
+                    isMobile ? 'w-4 h-4' : 'w-6 h-6'
+                  }`}
+                  style={{ backgroundColor: category.color }}
+                ></div>
+                <div className={`font-bold text-gray-800 truncate mb-1 ${
+                  isMobile ? 'text-xs' : 'text-sm'
+                }`} title={category.name}>
+                  {isMobile ? category.name.slice(0, 8) + (category.name.length > 8 ? '...' : '') : category.name}
+                </div>
+                <div className={`font-black mb-1 ${
+                  isMobile ? 'text-lg' : 'text-2xl'
+                }`} style={{ color: category.color }}>
+                  {category.completion}%
+                </div>
+                <div className={`text-gray-700 font-medium ${
+                  isMobile ? 'text-xs' : 'text-xs'
+                }`}>
+                  <div>{category.completed}/{category.total}</div>
+                  {category.timeSpent > 0 && !isMobile && (
+                    <div className="text-xs text-gray-600">{category.timeSpent}h</div>
+                  )}
+                </div>
+                
+                {/* Mini progress bar */}
+                <div className={`mt-2 bg-white/50 rounded-full overflow-hidden ${
+                  isMobile ? 'h-1' : 'h-1.5'
+                }`}>
+                  <div 
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ 
+                      width: `${category.completion}%`,
+                      backgroundColor: category.color 
+                    }}
+                  ></div>
+                </div>
               </div>
-              <div className="flex-1">
-                <ProgressBar value={category.completion} color={category.color} height="h-3" />
+            </div>
+          ))}
+          
+          {/* Add empty state if no categories */}
+          {categoryData.length === 0 && (
+            <div className={`bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 text-center col-span-full ${
+              isMobile ? 'p-3' : 'p-4'
+            }`}>
+              <div className="text-gray-400 text-2xl mb-2">📊</div>
+              <div className="text-sm text-gray-500">No category data yet</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Category Performance Overview - Closer spacing */}
+      <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3">Detailed Performance</h4>
+        {categoryData.length > 0 ? (
+          <div className="space-y-2">
+            {categoryData.map((category, index) => (
+              <div key={index} className={`flex items-center gap-2 md:gap-3 py-1 ${
+                isMobile ? 'text-sm' : ''
+              }`}>
+                <div className={`font-medium text-gray-700 truncate flex items-center gap-2 ${
+                  isMobile ? 'w-16' : 'w-20'
+                }`}>
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0" 
+                    style={{ backgroundColor: category.color }}
+                  ></div>
+                  <span className="truncate text-xs md:text-sm">{category.name}</span>
+                </div>
+                <div className="flex-1">
+                  <ProgressBar value={category.completion} color={category.color} height="h-3" />
+                </div>
+                <div className={`font-bold text-gray-800 text-right ${
+                  isMobile ? 'w-8 text-xs' : 'w-12 text-sm'
+                }`}>
+                  {category.completion}%
+                </div>
+                <div className={`text-gray-600 text-right ${
+                  isMobile ? 'w-12 text-xs' : 'w-16 text-xs'
+                }`}>
+                  {category.completed}/{category.total}
+                  {category.timeSpent > 0 && !isMobile && (
+                    <div>{category.timeSpent}h</div>
+                  )}
+                </div>
               </div>
-              <div className="w-10 text-xs font-bold text-gray-800 text-right">
-                {category.completion}%
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-32 bg-gray-50 rounded-md">
+            <div className="text-center">
+              <div className="text-gray-400 text-3xl mb-2">📊</div>
+              <span className="text-gray-500">No categories with data yet</span>
+              <p className="text-xs text-gray-400 mt-1">Complete categorized tasks to see performance</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderAchievementsTab = () => (
+    <div className="space-y-4 relative">
+      {/* Hover Tooltip */}
+      {hoveredAchievement && (
+        <div className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-w-80 pointer-events-none"
+             style={{
+               left: hoveredAchievement.x,
+               top: hoveredAchievement.y,
+               transform: 'translate(-50%, -100%)',
+               marginTop: '-10px'
+             }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-2xl">{hoveredAchievement.achievement.icon}</div>
+            <div>
+              <div className="font-semibold text-gray-800">{hoveredAchievement.achievement.name}</div>
+              <div className="text-xs text-gray-600">{hoveredAchievement.achievement.category}</div>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">{hoveredAchievement.achievement.description}</p>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-gray-700 mb-2">All Levels:</div>
+            {hoveredAchievement.achievement.levels.map((level, index) => (
+              <div key={level.level} className={`flex items-center gap-2 text-xs p-2 rounded ${
+                hoveredAchievement.achievement.achievedLevel >= level.level 
+                  ? 'bg-green-50 text-green-800' 
+                  : hoveredAchievement.achievement.achievedLevel + 1 === level.level
+                    ? 'bg-blue-50 text-blue-800'
+                    : 'bg-gray-50 text-gray-600'
+              }`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  hoveredAchievement.achievement.achievedLevel >= level.level 
+                    ? 'bg-green-500 text-white' 
+                    : hoveredAchievement.achievement.achievedLevel + 1 === level.level
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-300 text-gray-600'
+                }`}>
+                  {hoveredAchievement.achievement.achievedLevel >= level.level ? '✓' : level.level}
+                </div>
+                <span className="flex-1">{level.description}</span>
+                {hoveredAchievement.achievement.achievedLevel >= level.level && (
+                  <span className="text-green-600 font-medium">✓</span>
+                )}
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Achieved Achievements */}
+      {achievementProgress.achieved.length > 0 && (
+        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+          <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <Trophy size={16} />
+            Achieved ({achievementProgress.achieved.length})
+          </h4>
+          <div className="grid gap-2 md:grid-cols-2">
+            {achievementProgress.achieved.map((achievement) => (
+              <div 
+                key={achievement.id} 
+                className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                onMouseEnter={(e) => {
+                  if (!isMobile) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredAchievement({
+                      achievement,
+                      x: rect.left + rect.width / 2,
+                      y: rect.top
+                    });
+                  }
+                }}
+                onMouseLeave={() => setHoveredAchievement(null)}
+              >
+                <div className="text-2xl">{achievement.icon}</div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-800">{achievement.name}</div>
+                  <div className="text-sm text-gray-600">Level {achievement.achievedLevel}/{achievement.maxLevel}</div>
+                  <div className="text-xs text-yellow-600 font-medium">{achievement.category}</div>
+                </div>
+                <div className="text-2xl">🏆</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Progress Towards All Achievements */}
+      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <Target size={16} />
+          Achievement Progress
+        </h4>
+        <div className="grid gap-3 md:grid-cols-2">
+          {achievementProgress.all.map((achievement) => (
+            <div 
+              key={achievement.id} 
+              className="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+              onMouseEnter={(e) => {
+                if (!isMobile) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHoveredAchievement({
+                    achievement,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top
+                  });
+                }
+              }}
+              onMouseLeave={() => setHoveredAchievement(null)}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`text-xl ${achievement.achievedLevel === 0 ? 'opacity-50' : ''}`}>
+                  {achievement.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-800 text-sm">{achievement.name}</div>
+                  <div className="text-xs text-gray-600">{achievement.category}</div>
+                </div>
+                <div className="text-right">
+                  {achievement.isMaxed ? (
+                    <div className="text-yellow-600 font-bold text-sm">MAX</div>
+                  ) : (
+                    <div className="text-xs text-gray-600">
+                      Level {achievement.achievedLevel}/{achievement.maxLevel}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {!achievement.isMaxed && (
+                <div>
+                  <div className="text-xs text-gray-600 mb-1">
+                    Next: {achievement.nextLevel.description}
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <span>{achievement.currentValue}/{achievement.nextLevel.target}</span>
+                    <span>{Math.round((achievement.currentValue / achievement.nextLevel.target) * 100)}%</span>
+                  </div>
+                  <ProgressBar 
+                    value={(achievement.currentValue / achievement.nextLevel.target) * 100} 
+                    color={achievement.achievedLevel > 0 ? colors.primary : '#9CA3AF'} 
+                    height="h-2" 
+                  />
+                </div>
+              )}
+              
+              {achievement.isMaxed && (
+                <div className="text-center py-2">
+                  <div className="text-yellow-600 font-semibold text-sm">🌟 Maxed Out! 🌟</div>
+                  <div className="text-xs text-gray-600">All levels completed</div>
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="space-y-3">
-        <h4 className="font-semibold text-gray-800">Category Breakdown</h4>
-        {categoryData.map((category, index) => (
-          <div key={index} className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: category.color }}
-                ></div>
-                <span className="font-medium text-gray-800 text-sm">{category.name}</span>
-              </div>
-              <CircularProgress value={category.completion} size={40} color={category.color} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
-              <div>
-                <span className="font-medium">Completed:</span> {category.completed}/{category.total}
-              </div>
-              {category.timeSpent > 0 && (
-                <div>
-                  <span className="font-medium">Time:</span> {category.timeSpent}h
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+      {/* No Achievements Yet */}
+      {achievementProgress.achieved.length === 0 && (
+        <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm text-center">
+          <div className="text-3xl mb-3">🎯</div>
+          <h4 className="font-semibold text-gray-800 mb-2">Start Your Journey!</h4>
+          <p className="text-gray-600 text-sm">Complete tasks consistently to unlock achievements and track your progress.</p>
+        </div>
+      )}
 
-  const renderPerformanceTab = () => (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <Trophy size={16} />
-          Top Performing Tasks
-        </h4>
-        <div className="space-y-2">
-          {topTasks.map((task, index) => (
-            <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs"
-                   style={{ backgroundColor: colors.primary, color: 'white' }}>
-                {index + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-800 truncate text-sm">{task.name}</div>
-                <div className="text-xs text-gray-600">
-                  {task.completed}/{task.total} completed
-                  {task.timeSpent > 0 && ` • ${task.timeSpent}h`}
-                </div>
-                <div className="mt-1">
-                  <ProgressBar value={task.completion} color={task.color} height="h-1.5" />
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-sm" style={{ color: colors.primary }}>
-                  {task.completion}%
-                </div>
-                <div className="text-xs text-gray-600">
-                  Avg: {task.avgProgress}%
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Achievement System Info */}
+      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+        <h5 className="text-sm font-medium text-blue-800 mb-2">💡 How Achievements Work</h5>
+        <div className="text-sm text-blue-700 space-y-1">
+          <p>• Achievements have 5 levels each, getting progressively harder</p>
+          <p>• Progress is tracked across all time, not just the selected time period</p>
+          <p>• Unlock levels by reaching the target for each achievement type</p>
+          <p>• {isMobile ? 'Tap' : 'Hover over'} achievements to see all level requirements</p>
         </div>
       </div>
     </div>
@@ -561,44 +859,73 @@ export const AdvancedStatistics = () => {
       </div>
 
       {/* Controls */}
-      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3' : ''}`}>
-        {/* Time Range Selector */}
-        <div className="flex gap-1">
-          {[
-            { value: '7', label: '7D' },
-            { value: '30', label: '30D' },
-            { value: '90', label: '90D' },
-            { value: '365', label: '1Y' }
-          ].map(range => (
-            <button
-              key={range.value}
-              onClick={() => setTimeRange(range.value)}
-              className={`px-3 py-1 rounded-md font-medium transition-colors text-sm ${
-                timeRange === range.value
-                  ? 'text-white'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/30'
-              }`}
-              style={timeRange === range.value ? { backgroundColor: colors.primary } : {}}
-            >
-              {range.label}
-            </button>
-          ))}
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-4' : ''}`}>
+        {/* Time Range Slider */}
+        <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
+          <span className={`font-medium text-gray-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+            {isMobile ? 'Period:' : 'Time Period:'}
+          </span>
+          <div className="flex items-center gap-3">
+            {/* Preset buttons */}
+            <div className="flex gap-1">
+              {[30, 90, 180, 365].map(days => (
+                <button
+                  key={days}
+                  onClick={() => setTimeRange(days)}
+                  className={`rounded-md font-medium transition-colors ${
+                    isMobile ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs'
+                  } ${
+                    timeRange === days
+                      ? 'text-white'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                  style={timeRange === days ? { backgroundColor: colors.primary } : {}}
+                >
+                  {days}D
+                </button>
+              ))}
+            </div>
+            
+            {/* Slider - Hide on mobile to save space */}
+            {!isMobile && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">30</span>
+                <input
+                  type="range"
+                  min="30"
+                  max="365"
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(parseInt(e.target.value))}
+                  className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                  style={{
+                    background: `linear-gradient(to right, ${colors.primary} 0%, ${colors.primary} ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb 100%)`,
+                    focusRingColor: colors.primary
+                  }}
+                />
+                <span className="text-xs text-gray-500">365</span>
+                <span className="text-sm font-semibold text-gray-800 min-w-12">{timeRange}D</span>
+              </div>
+            )}
+            
+            {/* Mobile: Show current selection */}
+            {isMobile && (
+              <span className="text-sm font-semibold text-gray-800">{timeRange} days</span>
+            )}
+          </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1">
+        <div className={`flex gap-1 ${isMobile ? 'w-full justify-center' : ''}`}>
           <TabButton id="overview" label="Overview" icon={BarChart3} />
-          <TabButton id="trends" label="Trends" icon={TrendingUp} />
           <TabButton id="categories" label="Categories" icon={PieChart} />
-          <TabButton id="performance" label="Performance" icon={Trophy} />
+          <TabButton id="achievements" label="Achievements" icon={Trophy} />
         </div>
       </div>
 
       {/* Content */}
       {selectedTab === 'overview' && renderOverviewTab()}
-      {selectedTab === 'trends' && renderTrendsTab()}
       {selectedTab === 'categories' && renderCategoriesTab()}
-      {selectedTab === 'performance' && renderPerformanceTab()}
+      {selectedTab === 'achievements' && renderAchievementsTab()}
     </div>
   );
 };

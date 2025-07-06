@@ -16,6 +16,7 @@ import {TaskModal} from './TaskModal';
 import {TaskSection} from './TaskSection';
 import {WeeklySummaryView} from './WeeklySummaryView';
 import { AdvancedStatistics } from './AdvancedStatistics';
+import { generateTestData } from '../data/TestData';
 
 export const DailyTodoApp = () => {
   const {
@@ -244,119 +245,7 @@ export const DailyTodoApp = () => {
   };
 
   const generateFakeData = () => {
-    const fakeColors = colors.taskColors;
-    const today = new Date();
-    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
-    const fakeTasks = [
-      {
-        id: Date.now() + 1,
-        name: "Morning Exercise",
-        taskType: "time",
-        plannedMinutes: 30,
-        targetCount: null,
-        selectedDays: [1, 2, 3, 4, 5],
-        dailyProgress: {},
-        excludedDates: [],
-        oneOffDates: [],
-        startDate: dateUtils.getDateString(oneWeekAgo),
-        endDate: null,
-        color: fakeColors[0],
-        categoryId: 'fitness',
-        scheduleType: 'weekly',
-        monthlyTypes: ['first'],
-        monthlyDays: [],
-        intervalWeeks: 2,
-        sectionId: 'default'
-      },
-      {
-        id: Date.now() + 2,
-        name: "Read Pages",
-        taskType: "count",
-        plannedMinutes: null,
-        targetCount: 10,
-        selectedDays: [0, 1, 2, 3, 4, 5, 6],
-        dailyProgress: {},
-        excludedDates: [],
-        oneOffDates: [],
-        startDate: dateUtils.getDateString(oneWeekAgo),
-        endDate: null,
-        color: fakeColors[1],
-        categoryId: 'learning',
-        scheduleType: 'weekly',
-        monthlyTypes: ['first'],
-        monthlyDays: [],
-        intervalWeeks: 2,
-        sectionId: 'default'
-      },
-      {
-        id: Date.now() + 3,
-        name: "Meditation",
-        taskType: "time",
-        plannedMinutes: 15,
-        targetCount: null,
-        selectedDays: [0, 6],
-        dailyProgress: {},
-        excludedDates: [],
-        oneOffDates: [],
-        startDate: dateUtils.getDateString(oneWeekAgo),
-        endDate: null,
-        color: fakeColors[2],
-        categoryId: 'health',
-        scheduleType: 'weekly',
-        monthlyTypes: ['first'],
-        monthlyDays: [],
-        intervalWeeks: 2,
-        sectionId: 'default'
-      },
-      {
-        id: Date.now() + 4,
-        name: "Take Vitamins",
-        taskType: "count",
-        plannedMinutes: null,
-        targetCount: 1,
-        selectedDays: [0, 1, 2, 3, 4, 5, 6],
-        dailyProgress: {},
-        excludedDates: [],
-        oneOffDates: [],
-        startDate: dateUtils.getDateString(oneWeekAgo),
-        endDate: null,
-        color: fakeColors[3],
-        categoryId: 'health',
-        scheduleType: 'weekly',
-        monthlyTypes: ['first'],
-        monthlyDays: [],
-        intervalWeeks: 2,
-        sectionId: 'default'
-      }
-    ];
-
-    // Add some fake progress data
-    fakeTasks.forEach(task => {
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(oneWeekAgo.getTime() + i * 24 * 60 * 60 * 1000);
-        const dateString = dateUtils.getDateString(date);
-        
-        if (task.taskType === 'time') {
-          const completionRate = 0.5 + Math.random() * 0.7;
-          const timeSpent = Math.floor(task.plannedMinutes * 60 * completionRate);
-          task.dailyProgress[dateString] = {
-            timeSpent: timeSpent,
-            isRunning: false,
-            startTime: null
-          };
-        } else {
-          const completionRate = 0.6 + Math.random() * 0.5;
-          const count = Math.floor(task.targetCount * completionRate);
-          task.dailyProgress[dateString] = {
-            currentCount: count,
-            isRunning: false,
-            startTime: null
-          };
-        }
-      }
-    });
-
+    const fakeTasks = generateTestData(colors, dateUtils);
     setTasks(fakeTasks);
   };
 
