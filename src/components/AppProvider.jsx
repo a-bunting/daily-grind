@@ -8,6 +8,7 @@ const AppProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [sections, setSections] = useState(DEFAULT_SECTIONS);
+  const [goals, setGoals] = useState([]); // New goals state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('day');
   const [editMode, setEditMode] = useState(false);
@@ -32,6 +33,7 @@ const AppProvider = ({ children }) => {
     const savedTasks = storageUtils.loadFromStorage('dailyGrind_tasks', []);
     const savedCategories = storageUtils.loadFromStorage('dailyGrind_categories', DEFAULT_CATEGORIES);
     const savedSections = storageUtils.loadFromStorage('dailyGrind_sections', DEFAULT_SECTIONS);
+    const savedGoals = storageUtils.loadFromStorage('dailyGrind_goals', []);
     const savedColorScheme = storageUtils.loadFromStorage('dailyGrind_colorScheme', 'indigo');
     const savedLayoutMode = storageUtils.loadFromStorage('dailyGrind_layoutMode', 'list');
     const savedColumnCount = storageUtils.loadFromStorage('dailyGrind_columnCount', 1);
@@ -40,6 +42,7 @@ const AppProvider = ({ children }) => {
     if (savedTasks.length > 0) setTasks(savedTasks);
     if (savedCategories.length > 0) setCategories(savedCategories);
     if (savedSections.length > 0) setSections(savedSections);
+    if (savedGoals.length > 0) setGoals(savedGoals);
     setCurrentColorScheme(savedColorScheme);
     setLayoutMode(savedLayoutMode);
     // Ensure columnCount is within valid range (1-3)
@@ -57,8 +60,16 @@ const AppProvider = ({ children }) => {
   }, [categories]);
 
   useEffect(() => {
+    storageUtils.saveToStorage('dailyGrind_goals', goals);
+  }, [goals]);
+
+  useEffect(() => {
     storageUtils.saveToStorage('dailyGrind_sections', sections);
   }, [sections]);
+
+  useEffect(() => {
+    storageUtils.saveToStorage('dailyGrind_goals', goals); // Save goals
+  }, [goals]);
 
   useEffect(() => {
     storageUtils.saveToStorage('dailyGrind_colorScheme', currentColorScheme);
@@ -104,10 +115,109 @@ const AppProvider = ({ children }) => {
 
   const colors = COLOR_SCHEMES[currentColorScheme];
 
+  // Goal management functions
+const addGoal = (goal) => {
+  const newGoal = {
+    ...goal,
+    id: Date.now().toString(),
+    currentProgress: 0,
+    personalBestProgress: 0, // ADD THIS LINE
+    createdDate: new Date().toISOString().split('T')[0],
+    goalType: goal.goalType || 'cumulative' // ADD THIS LINE
+  };
+  setGoals(prev => [...prev, newGoal]);
+  return newGoal;
+};
+
+  const updateGoal = (goalId, updates) => {
+    setGoals(prev => prev.map(goal => 
+      goal.id === goalId ? { ...goal, ...updates } : goal
+    ));
+  };
+
+  const deleteGoal = (goalId) => {
+    setGoals(prev => prev.filter(goal => goal.id !== goalId));
+    // Also remove goal links from tasks
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      goalId: task.goalId === goalId ? null : task.goalId
+    })));
+  };
+
+  const calculateGoalProgress = (goalId) => {
+    // This will be implemented when we add task contributions
+    // For now, return the stored currentProgress
+    const goal = goals.find(g => g.id === goalId);
+    return goal ? goal.currentProgress : 0;
+  };
+
+  // ADD THIS ONE ENHANCED VERSION
+useEffect(() => {
+  // Enhanced goal progress calculation for both cumulative and personal best
+  setGoals(prevGoals => 
+    prevGoals.map(goal => {
+      const contributingTasks = tasks.filter(task => 
+        task.goalId === goal.id && task.taskType === 'input'
+      );
+      
+      let cumulativeProgress = 0;
+      let personalBestProgress = 0;
+      
+      // Calculate both cumulative and personal best from all task inputs
+      contributingTasks.forEach(task => {
+        Object.values(task.dailyProgress || {}).forEach(dayProgress => {
+          if (dayProgress.inputValue && dayProgress.inputValue > 0) {
+            // Cumulative: sum all inputs
+            cumulativeProgress += dayProgress.inputValue;
+            
+            // Personal Best: track highest single input
+            if (dayProgress.inputValue > personalBestProgress) {
+              personalBestProgress = dayProgress.inputValue;
+            }
+          }
+        });
+      });
+      
+      return { 
+        ...goal, 
+        currentProgress: cumulativeProgress,
+        personalBestProgress: personalBestProgress
+      };
+    })
+  );
+}, [tasks, setGoals]);
+
+const getGoalDisplayProgress = (goal) => {
+    if (!goal) return { current: 0, percentage: 0, label: '' };
+    
+    const targetValue = goal.targetValue || 1;
+    
+    if (goal.goalType === 'personalBest') {
+        const current = goal.personalBestProgress || 0;
+        const percentage = Math.min((current / targetValue) * 100, 100);
+        return {
+            current,
+            percentage,
+            label: `Best: ${current}${goal.unit ? ` ${goal.unit}` : ''} / ${targetValue}${goal.unit ? ` ${goal.unit}` : ''}`,
+            secondary: goal.currentProgress > 0 ? `Total: ${goal.currentProgress}${goal.unit ? ` ${goal.unit}` : ''}` : null
+        };
+    } else {
+        const current = goal.currentProgress || 0;
+        const percentage = Math.min((current / targetValue) * 100, 100);
+        return {
+            current,
+            percentage, 
+            label: `${current}${goal.unit ? ` ${goal.unit}` : ''} / ${targetValue}${goal.unit ? ` ${goal.unit}` : ''}`,
+            secondary: goal.personalBestProgress > 0 ? `Best session: ${goal.personalBestProgress}${goal.unit ? ` ${goal.unit}` : ''}` : null
+        };
+    }
+};
+
   const value = {
     tasks, setTasks,
     categories, setCategories,
     sections, setSections,
+    goals, setGoals, // Add goals to context
     currentDate, setCurrentDate,
     viewMode, setViewMode,
     editMode, setEditMode,
@@ -124,7 +234,12 @@ const AppProvider = ({ children }) => {
     showSettings, setShowSettings,
     windowWidth,
     draggedTask, setDraggedTask,
-    dragOverSection, setDragOverSection
+    dragOverSection, setDragOverSection,
+    getGoalDisplayProgress,
+    addGoal,
+    updateGoal,
+    deleteGoal,
+    calculateGoalProgress
   };
 
   return React.createElement(AppContext.Provider, { value }, children);

@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, Download, Edit2, Eye, LogIn, LogOut, Menu, Palette, Plus, Settings, Upload, User, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, Calendar, ChevronDown, ChevronLeft, Target, ChevronRight, Clock, Download, Edit2, Eye, LogIn, LogOut, Menu, Palette, Plus, Settings, Upload, User, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { COLOR_SCHEMES, DAYS, DAY_ABBREVIATIONS, MONTHS } from '../constants';
 import {useApp} from './AppProvider';
@@ -7,16 +7,18 @@ import { useTaskActions } from '../hooks/useTaskActions';
 import { useTaskProgress } from '../hooks/useTaskProgress';
 import { useTaskScheduling } from '../hooks/useTaskScheduling';
 import { dateUtils, timeUtils } from '../utils/index';
-import {AuthModal} from './AuthModal';
+import {AuthModal} from './modals/AuthModal';
 import {DemoNotice} from './DemoNotice';
-import {SectionEditModal} from './SectionEditModal';
-import {SettingsModal} from './SettingsModal';
+import {SectionEditModal} from './modals/SectionEditModal';
+import {SettingsModal} from './modals/SettingsModal';
 import {TaskAnalyticsView} from './TaskAnalyticsView';
-import {TaskModal} from './TaskModal';
+import {TaskModal} from './modals/TaskModal';
 import {TaskSection} from './TaskSection';
 import {WeeklySummaryView} from './WeeklySummaryView';
 import { AdvancedStatistics } from './AdvancedStatistics';
 import { generateTestData } from '../data/TestData';
+import { GoalsDashboard } from './GoalsDashboard';
+import InputProgressModal from './modals/InputProgressModal';
 
 export const DailyTodoApp = () => {
   const {
@@ -46,9 +48,13 @@ export const DailyTodoApp = () => {
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
 
+  const [showInputModal, setShowInputModal] = useState(false);
+  const [inputModalTask, setInputModalTask] = useState(null);
+  const [inputModalDate, setInputModalDate] = useState(null);
+
   const { isTaskScheduledForDate, getTasksWithDataForDate } = useTaskScheduling();
   const { getDayProgress, getDateProgress, getProgress } = useTaskProgress();
-  const { skipTaskForDay, addSingletonTask, deleteTask } = useTaskActions();
+  const { addInputProgress, skipTaskForDay, addSingletonTask, deleteTask } = useTaskActions();
   const { getTasksForSection } = useSectionLogic();
 
   const getTodaysTasks = () => {
@@ -89,6 +95,19 @@ export const DailyTodoApp = () => {
     console.log('User logged out');
   };
 
+    const handleInputTaskClick = (task, date) => {
+        setInputModalTask(task);
+        setInputModalDate(date);
+        setShowInputModal(true);
+    };
+
+    // Add function to save input progress
+    const handleSaveInputProgress = (taskId, dateString, inputValue) => {
+        addInputProgress(taskId, dateString, inputValue);
+        setShowInputModal(false);
+    };
+
+
   const handleSync = async () => {
     setIsLoading(true);
     try {
@@ -114,6 +133,7 @@ export const DailyTodoApp = () => {
   };
 
   const handleTaskSave = (taskData, editingTask) => {
+    console.log('DailyTodoApp received:', taskData);
     if (editingTask) {
       setTasks(tasks.map(task => 
         task.id === editingTask.id 
@@ -132,7 +152,9 @@ export const DailyTodoApp = () => {
               monthlyTypes: taskData.monthlyTypes,
               monthlyDays: taskData.monthlyDays,
               intervalWeeks: taskData.intervalWeeks,
-              sectionId: taskData.sectionId
+              sectionId: taskData.sectionId,
+              goalId: taskData.goalId,
+              unit: taskData.unit,
             }
           : task
       ));
@@ -155,7 +177,9 @@ export const DailyTodoApp = () => {
         monthlyTypes: taskData.monthlyTypes,
         monthlyDays: taskData.monthlyDays,
         intervalWeeks: taskData.intervalWeeks,
-        sectionId: taskData.sectionId
+        sectionId: taskData.sectionId,
+        goalId: taskData.goalId,
+        unit: taskData.unit,
       };
       setTasks([...tasks, task]);
     }
@@ -646,6 +670,14 @@ export const DailyTodoApp = () => {
         onSave={handleTaskSave}
       />
 
+      <InputProgressModal
+        isOpen={showInputModal}
+        onClose={() => setShowInputModal(false)}
+        task={inputModalTask}
+        date={inputModalDate}
+        onSave={handleSaveInputProgress}
+        />
+
       {/* Section Edit Modal */}
       <SectionEditModal
         isOpen={showSectionModal}
@@ -823,6 +855,21 @@ export const DailyTodoApp = () => {
         {/* View Mode Buttons */}
         <div className="flex gap-2">
             
+        <button
+        onClick={() => setViewMode('goals')}
+        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            viewMode === 'goals'
+            ? 'text-white'
+            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+        }`}
+        style={{
+            backgroundColor: viewMode === 'goals' ? colors.primary : 'transparent'
+        }}
+        >
+        <Target size={16} className="inline mr-1" />
+        Goals
+        </button>
+
         {/* Existing buttons... */}
         <button
             onClick={() => setViewMode('advanced-statistics')}
@@ -886,13 +933,15 @@ export const DailyTodoApp = () => {
         </div>
 
         {/* Content Area */}
-        <div className={`flex-1 p-4 overflow-y-auto ${isMobile || isTablet ? 'mt-16' : ''}`}>
+        <div className={`flex-1 p-4 ml-auto mr-auto min-w-full overflow-y-auto ${isMobile || isTablet ? 'mt-16' : ''}`}>
           {viewMode === 'task-analytics' && analyticsTask ? (
             <TaskAnalyticsView task={analyticsTask} onBack={handleBackToCalendar} />
           ) : viewMode === 'weekly-summary' && weekSummaryDate ? (
             <WeeklySummaryView weekDate={weekSummaryDate} onBack={handleBackToCalendar} />
           ) : viewMode === 'advanced-statistics' ? (
             <AdvancedStatistics />
+          ) : viewMode === 'goals' ? (
+            <GoalsDashboard onBack={() => setViewMode('day')} />
           ) : (
             <div className={isMobile ? '' : 'max-w-7xl'}>
               {viewMode === 'day' ? (
@@ -981,6 +1030,7 @@ export const DailyTodoApp = () => {
                             tasks={sectionTasks}
                             sectionIndex={index}
                             totalSections={sections.length}
+                            onInputClick={handleInputTaskClick}
                             onTaskEdit={(task) => {
                               setEditingTask(task);
                               setShowTaskModal(true);

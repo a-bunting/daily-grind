@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {useApp} from './AppProvider';
 import { useTaskProgress } from '../hooks/useTaskProgress';
 import { useTaskScheduling } from '../hooks/useTaskScheduling';
-import { dateUtils } from '../utils/index';
 import { ArrowLeft, TrendingUp, Clock, Target, BarChart3, PieChart, Trophy, Zap, Activity } from 'lucide-react';
 import { achievementDefinitions, calculateAchievementValue } from '../data/AchievementDefinitions';
 
@@ -23,6 +22,7 @@ export const AdvancedStatistics = () => {
   const [timeRange, setTimeRange] = useState(30); // Now using number instead of string
   const [selectedTab, setSelectedTab] = useState('overview');
   const [hoveredAchievement, setHoveredAchievement] = useState(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Calculate date range based on selection
   const dateRange = useMemo(() => {
@@ -287,7 +287,18 @@ export const AdvancedStatistics = () => {
 
     const achieved = progressData.filter(a => a.achievedLevel > 0);
     
-    return { all: progressData, achieved };
+    // Calculate total points from achievements
+    const totalPoints = achieved.reduce((sum, achievement) => {
+      // Points per level: Level 1 = 10pts, Level 2 = 25pts, Level 3 = 50pts, Level 4 = 100pts, Level 5 = 200pts
+      const pointsPerLevel = [0, 10, 25, 50, 100, 200];
+      let achievementPoints = 0;
+      for (let i = 1; i <= achievement.achievedLevel; i++) {
+        achievementPoints += pointsPerLevel[i] || 0;
+      }
+      return sum + achievementPoints;
+    }, 0);
+    
+    return { all: progressData, achieved, totalPoints };
   }, [allTimeData, overviewStats.currentStreak]);
 
   // Helper Components
@@ -340,7 +351,7 @@ export const AdvancedStatistics = () => {
   };
 
   const StatCard = ({ icon: Icon, title, value, subtitle, color, children }) => (
-    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm h-full">
+    <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm h-full flex flex-col">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-md" style={{ backgroundColor: `${color}20` }}>
           <Icon size={16} style={{ color }} />
@@ -350,7 +361,7 @@ export const AdvancedStatistics = () => {
           <p className="text-xs text-gray-500">{subtitle}</p>
         </div>
       </div>
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between mt-auto">
         <p className="text-xl font-bold text-gray-900">{value}</p>
         <div className="flex-shrink-0">
           {children}
@@ -494,7 +505,7 @@ export const AdvancedStatistics = () => {
           <div className="text-lg font-bold text-gray-800">
             {trendData.length > 0 ? trendData.slice(-7).filter(d => d.progress > 50).length : 0}
           </div>
-          <div className="text-xs text-gray-600">Good Days (>50%)</div>
+          <div className="text-xs text-gray-600">Good Days (&gt;50%)</div>
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm text-center">
           <Trophy size={20} className="mx-auto mb-2" style={{ color: '#F59E0B' }} />
@@ -507,20 +518,28 @@ export const AdvancedStatistics = () => {
 
       {/* Recent Achievements */}
       {achievementProgress.achieved.length > 0 && (
-        <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+        <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
           <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
             <Trophy size={16} />
             Recent Achievements
           </h4>
-          <div className="grid gap-2 md:grid-cols-2">
-            {achievementProgress.achieved.slice(0, 4).map((achievement) => (
+          <div className={`grid gap-2 ${
+            isMobile 
+              ? 'grid-cols-1' 
+              : achievementProgress.achieved.length >= 6
+                ? 'grid-cols-3 xl:grid-cols-4'
+                : achievementProgress.achieved.length >= 4
+                  ? 'grid-cols-2 xl:grid-cols-3'
+                  : 'grid-cols-2'
+          }`}>
+            {achievementProgress.achieved.slice(0, 8).map((achievement) => (
               <div key={achievement.id} className="flex items-center gap-2 p-2 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
-                <div className="text-lg">{achievement.icon}</div>
+                <div className={isMobile ? 'text-lg' : 'text-xl'}>{achievement.icon}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-800 text-sm">{achievement.name}</div>
-                  <div className="text-xs text-gray-600 truncate">Level {achievement.achievedLevel}</div>
+                  <div className={`font-semibold text-gray-800 truncate ${isMobile ? 'text-xs' : 'text-sm'}`}>{achievement.name}</div>
+                  <div className="text-xs text-gray-600">Level {achievement.achievedLevel}</div>
                 </div>
-                <div className="text-sm">🏆</div>
+                <div className={isMobile ? 'text-sm' : 'text-lg'}>🏆</div>
               </div>
             ))}
           </div>
@@ -531,8 +550,8 @@ export const AdvancedStatistics = () => {
 
   const renderCategoriesTab = () => (
     <div className="space-y-4">
-      {/* Category Summary Boxes - Better Mobile/Tablet Response */}
-      <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
+      {/* Category Summary Boxes - No White Background */}
+      <div className="p-3 md:p-4">
         <h4 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm">Category Overview</h4>
         <div className={`grid gap-2 md:gap-3 ${
           isMobile 
@@ -619,7 +638,7 @@ export const AdvancedStatistics = () => {
       <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 shadow-sm">
         <h4 className="font-semibold text-gray-800 mb-3">Detailed Performance</h4>
         {categoryData.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {categoryData.map((category, index) => (
               <div key={index} className={`flex items-center gap-2 md:gap-3 py-1 ${
                 isMobile ? 'text-sm' : ''
@@ -667,44 +686,43 @@ export const AdvancedStatistics = () => {
 
   const renderAchievementsTab = () => (
     <div className="space-y-4 relative">
-      {/* Hover Tooltip */}
+      {/* Improved Hover Tooltip */}
       {hoveredAchievement && (
         <div className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-w-80 pointer-events-none"
              style={{
-               left: hoveredAchievement.x,
-               top: hoveredAchievement.y,
-               transform: 'translate(-50%, -100%)',
-               marginTop: '-10px'
+               left: Math.min(mousePosition.x - 160, window.innerWidth - 320),
+               top: Math.max(mousePosition.y - 300, 10),
+               maxWidth: isMobile ? '280px' : '320px'
              }}>
           <div className="flex items-center gap-2 mb-3">
-            <div className="text-2xl">{hoveredAchievement.achievement.icon}</div>
+            <div className="text-2xl">{hoveredAchievement.icon}</div>
             <div>
-              <div className="font-semibold text-gray-800">{hoveredAchievement.achievement.name}</div>
-              <div className="text-xs text-gray-600">{hoveredAchievement.achievement.category}</div>
+              <div className="font-semibold text-gray-800">{hoveredAchievement.name}</div>
+              <div className="text-xs text-gray-600">{hoveredAchievement.category}</div>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-3">{hoveredAchievement.achievement.description}</p>
+          <p className="text-sm text-gray-600 mb-3">{hoveredAchievement.description}</p>
           <div className="space-y-2">
             <div className="text-xs font-medium text-gray-700 mb-2">All Levels:</div>
-            {hoveredAchievement.achievement.levels.map((level, index) => (
+            {hoveredAchievement.levels.map((level, index) => (
               <div key={level.level} className={`flex items-center gap-2 text-xs p-2 rounded ${
-                hoveredAchievement.achievement.achievedLevel >= level.level 
+                hoveredAchievement.achievedLevel >= level.level 
                   ? 'bg-green-50 text-green-800' 
-                  : hoveredAchievement.achievement.achievedLevel + 1 === level.level
+                  : hoveredAchievement.achievedLevel + 1 === level.level
                     ? 'bg-blue-50 text-blue-800'
                     : 'bg-gray-50 text-gray-600'
               }`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                  hoveredAchievement.achievement.achievedLevel >= level.level 
+                  hoveredAchievement.achievedLevel >= level.level 
                     ? 'bg-green-500 text-white' 
-                    : hoveredAchievement.achievement.achievedLevel + 1 === level.level
+                    : hoveredAchievement.achievedLevel + 1 === level.level
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-300 text-gray-600'
                 }`}>
-                  {hoveredAchievement.achievement.achievedLevel >= level.level ? '✓' : level.level}
+                  {hoveredAchievement.achievedLevel >= level.level ? '✓' : level.level}
                 </div>
                 <span className="flex-1">{level.description}</span>
-                {hoveredAchievement.achievement.achievedLevel >= level.level && (
+                {hoveredAchievement.achievedLevel >= level.level && (
                   <span className="text-green-600 font-medium">✓</span>
                 )}
               </div>
@@ -727,12 +745,12 @@ export const AdvancedStatistics = () => {
                 className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
                 onMouseEnter={(e) => {
                   if (!isMobile) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setHoveredAchievement({
-                      achievement,
-                      x: rect.left + rect.width / 2,
-                      y: rect.top
-                    });
+                    setHoveredAchievement(achievement);
+                  }
+                }}
+                onMouseMove={(e) => {
+                  if (!isMobile) {
+                    setMousePosition({ x: e.clientX, y: e.clientY });
                   }
                 }}
                 onMouseLeave={() => setHoveredAchievement(null)}
@@ -763,12 +781,12 @@ export const AdvancedStatistics = () => {
               className="p-3 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
               onMouseEnter={(e) => {
                 if (!isMobile) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setHoveredAchievement({
-                    achievement,
-                    x: rect.left + rect.width / 2,
-                    y: rect.top
-                  });
+                  setHoveredAchievement(achievement);
+                }
+              }}
+              onMouseMove={(e) => {
+                if (!isMobile) {
+                  setMousePosition({ x: e.clientX, y: e.clientY });
                 }
               }}
               onMouseLeave={() => setHoveredAchievement(null)}
@@ -836,6 +854,7 @@ export const AdvancedStatistics = () => {
           <p>• Achievements have 5 levels each, getting progressively harder</p>
           <p>• Progress is tracked across all time, not just the selected time period</p>
           <p>• Unlock levels by reaching the target for each achievement type</p>
+          <p>• Points earned: Level 1 = 10pts, Level 2 = 25pts, Level 3 = 50pts, Level 4 = 100pts, Level 5 = 200pts</p>
           <p>• {isMobile ? 'Tap' : 'Hover over'} achievements to see all level requirements</p>
         </div>
       </div>
@@ -843,7 +862,7 @@ export const AdvancedStatistics = () => {
   );
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button 
@@ -860,59 +879,80 @@ export const AdvancedStatistics = () => {
 
       {/* Controls */}
       <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-4' : ''}`}>
-        {/* Time Range Slider */}
-        <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
-          <span className={`font-medium text-gray-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-            {isMobile ? 'Period:' : 'Time Period:'}
-          </span>
-          <div className="flex items-center gap-3">
-            {/* Preset buttons */}
-            <div className="flex gap-1">
-              {[30, 90, 180, 365].map(days => (
-                <button
-                  key={days}
-                  onClick={() => setTimeRange(days)}
-                  className={`rounded-md font-medium transition-colors ${
-                    isMobile ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs'
-                  } ${
-                    timeRange === days
-                      ? 'text-white'
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                  }`}
-                  style={timeRange === days ? { backgroundColor: colors.primary } : {}}
-                >
-                  {days}D
-                </button>
-              ))}
-            </div>
-            
-            {/* Slider - Hide on mobile to save space */}
-            {!isMobile && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">30</span>
-                <input
-                  type="range"
-                  min="30"
-                  max="365"
+        {/* Time Range Selector - Only show for overview and categories tabs */}
+        {(selectedTab === 'overview' || selectedTab === 'categories') && (
+          <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
+            <span className={`font-medium text-gray-700 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              {isMobile ? 'Period:' : 'Time Period:'}
+            </span>
+            <div className="flex items-center gap-3">
+              {/* Mobile Dropdown */}
+              {isMobile ? (
+                <select
                   value={timeRange}
                   onChange={(e) => setTimeRange(parseInt(e.target.value))}
-                  className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                  style={{
-                    background: `linear-gradient(to right, ${colors.primary} 0%, ${colors.primary} ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb 100%)`,
-                    focusRingColor: colors.primary
-                  }}
-                />
-                <span className="text-xs text-gray-500">365</span>
-                <span className="text-sm font-semibold text-gray-800 min-w-12">{timeRange}D</span>
-              </div>
-            )}
-            
-            {/* Mobile: Show current selection */}
-            {isMobile && (
-              <span className="text-sm font-semibold text-gray-800">{timeRange} days</span>
-            )}
+                  className="px-3 py-1 rounded-md border border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                  style={{ focusRingColor: colors.primary }}
+                >
+                  <option value={30}>30 Days</option>
+                  <option value={60}>60 Days</option>
+                  <option value={90}>90 Days</option>
+                  <option value={180}>6 Months</option>
+                  <option value={365}>1 Year</option>
+                </select>
+              ) : (
+                <>
+                  {/* Preset buttons */}
+                  <div className="flex gap-1">
+                    {[30, 90, 180, 365].map(days => (
+                      <button
+                        key={days}
+                        onClick={() => setTimeRange(days)}
+                        className={`px-1.5 py-0.5 rounded-md font-medium transition-colors text-xs ${
+                          timeRange === days
+                            ? 'text-white'
+                            : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                        }`}
+                        style={timeRange === days ? { backgroundColor: colors.primary } : {}}
+                      >
+                        {days}D
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Slider */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-500">30</span>
+                    <input
+                      type="range"
+                      min="30"
+                      max="365"
+                      value={timeRange}
+                      onChange={(e) => setTimeRange(parseInt(e.target.value))}
+                      className="w-16 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                      style={{
+                        background: `linear-gradient(to right, ${colors.primary} 0%, ${colors.primary} ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb ${((timeRange - 30) / (365 - 30)) * 100}%, #e5e7eb 100%)`,
+                        focusRingColor: colors.primary
+                      }}
+                    />
+                    <span className="text-xs text-gray-500">365</span>
+                    <span className="text-xs font-semibold text-gray-800 min-w-8">{timeRange}D</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Achievement Points - Only show for achievements tab */}
+        {selectedTab === 'achievements' && (
+          <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center' : ''}`}>
+            <div className="flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <Trophy size={16} className="text-yellow-600" />
+              <span className="font-semibold text-gray-800">Total Points: {achievementProgress.totalPoints}</span>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className={`flex gap-1 ${isMobile ? 'w-full justify-center' : ''}`}>

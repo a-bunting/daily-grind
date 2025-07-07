@@ -1,6 +1,5 @@
 // src/hooks/useTaskProgress.js
-
-import {useApp} from '../components/AppProvider';
+import { useApp } from '../components/AppProvider';
 import { useTaskScheduling } from './useTaskScheduling';
 import { dateUtils } from '../utils/index';
 
@@ -13,6 +12,8 @@ export const useTaskProgress = () => {
     if (!task.dailyProgress || !task.dailyProgress[dateString]) {
       if (task.taskType === 'count') {
         return { currentCount: 0, isRunning: false, startTime: null };
+      } else if (task.taskType === 'input') {
+        return { inputValue: 0, isRunning: false, startTime: null };
       } else {
         return { timeSpent: 0, isRunning: false, startTime: null };
       }
@@ -22,9 +23,14 @@ export const useTaskProgress = () => {
 
   const getProgress = (task, date) => {
     const dateProgress = getDateProgress(task, date);
+    
     if (task.taskType === 'count') {
       return Math.min(((dateProgress.currentCount || 0) / task.targetCount) * 100, 100);
+    } else if (task.taskType === 'input') {
+      // For input tasks, return 100% if they logged any progress today, 0% otherwise
+      return (dateProgress.inputValue && dateProgress.inputValue > 0) ? 100 : 0;
     } else {
+      // Time tasks
       const plannedMinutes = parseFloat(task.plannedMinutes) || 0;
       if (plannedMinutes === 0) return 0;
       const plannedSeconds = plannedMinutes * 60;
@@ -35,13 +41,13 @@ export const useTaskProgress = () => {
   const getDayProgress = (date) => {
     const dayTasks = getTasksWithDataForDate(date);
     if (dayTasks.length === 0) return 0;
-    
+   
     let totalProgress = 0;
     dayTasks.forEach(task => {
       const progress = getProgress(task, date);
       totalProgress += progress;
     });
-    
+   
     return Math.round(totalProgress / dayTasks.length);
   };
 

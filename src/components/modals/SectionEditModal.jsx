@@ -1,9 +1,9 @@
 import { Save, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {useApp} from './AppProvider';
+import {useApp} from '../AppProvider';
 
 export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete }) => {
-  const { colors, isMobile, categories } = useApp();
+  const { colors, isMobile, categories, goals } = useApp();
   const [sectionData, setSectionData] = useState({
     name: '',
     layoutMode: 'list',
@@ -165,16 +165,22 @@ export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete })
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">Auto-Assignment Rules</label>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 <button
                   onClick={() => addRule('category')}
-                  className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                  className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
                 >
                   + Category
                 </button>
                 <button
+                  onClick={() => addRule('goal')}
+                  className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
+                >
+                  + Goal
+                </button>
+                <button
                   onClick={() => addRule('name')}
-                  className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                  className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
                 >
                   + Name Contains
                 </button>
@@ -185,13 +191,15 @@ export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete })
               {sectionData.rules.map(rule => (
                 <div key={rule.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
                   <span className="text-xs font-medium text-gray-600 min-w-0 flex-shrink-0">
-                    {rule.type === 'category' ? 'Category:' : 'Name contains:'}
+                    {rule.type === 'category' ? 'Category:' : 
+                     rule.type === 'goal' ? 'Goal:' : 
+                     'Name contains:'}
                   </span>
                   {rule.type === 'category' ? (
                     <select
                       value={rule.value}
                       onChange={(e) => updateRule(rule.id, e.target.value)}
-                      className="flex-1 p-1 border border-gray-300 rounded text-xs"
+                      className="flex-1 p-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="">Select category...</option>
                       {categories.map(cat => (
@@ -200,29 +208,57 @@ export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete })
                         </option>
                       ))}
                     </select>
+                  ) : rule.type === 'goal' ? (
+                    <select
+                      value={rule.value}
+                      onChange={(e) => updateRule(rule.id, e.target.value)}
+                      className="flex-1 p-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Select goal...</option>
+                      {(goals || []).map(goal => (
+                        <option key={goal.id} value={goal.id}>
+                          🎯 {goal.name}
+                        </option>
+                      ))}
+                    </select>
                   ) : (
                     <input
                       type="text"
                       value={rule.value}
                       onChange={(e) => updateRule(rule.id, e.target.value)}
-                      className="flex-1 p-1 border border-gray-300 rounded text-xs"
+                      className="flex-1 p-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       placeholder="Text to match..."
                     />
                   )}
                   <button
                     onClick={() => removeRule(rule.id)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    title="Remove rule"
                   >
                     <X size={12} className="text-red-500" />
                   </button>
                 </div>
               ))}
               {sectionData.rules.length === 0 && (
-                <p className="text-xs text-gray-500 text-center py-2">
-                  No rules defined. Tasks will be assigned manually.
-                </p>
+                <div className="text-center py-3">
+                  <p className="text-xs text-gray-500 mb-2">
+                    No auto-assignment rules defined.
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Tasks will be assigned to this section manually or through drag & drop.
+                  </p>
+                </div>
               )}
             </div>
+            
+            {/* Rules explanation */}
+            {sectionData.rules.length > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                <p className="text-xs text-blue-700">
+                  <strong>Auto-assignment:</strong> Tasks matching any of these rules will be automatically placed in this section when created or edited.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         

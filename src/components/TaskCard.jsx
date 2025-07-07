@@ -1,11 +1,11 @@
-import { Check, EyeOff, GripVertical, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react';
+import { Check, EyeOff, GripVertical, Minus, Pause, Play, Plus, RotateCcw, Target, TrendingUp } from 'lucide-react';
 import {useApp} from './AppProvider';
 import { useTaskActions } from '../hooks/useTaskActions';
 import { useTaskProgress } from '../hooks/useTaskProgress';
 import { timeUtils } from '../utils/index';
 
-export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, onDragStart, onDragEnd, editMode }) => {
-  const { colors, isMobile, categories, currentDate, setDraggedTask } = useApp();
+export const TaskCard = ({ task, onEdit, onDelete, onSkip, onInputClick, section, isDragging, onDragStart, onDragEnd, editMode }) => {
+  const { colors, isMobile, categories, goals, currentDate, setDraggedTask } = useApp();
   const { getDateProgress, getProgress } = useTaskProgress();
   const { toggleTimer, resetTimer, incrementCount, decrementCount, toggleCheckbox } = useTaskActions();
 
@@ -15,6 +15,11 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
 
   // Check if this is a single-count task (checkbox behavior)
   const isSingleCount = task.taskType === 'count' && task.targetCount === 1;
+
+  // Add input task support
+  const isInputTask = task.taskType === 'input';
+  const linkedGoal = goals?.find(g => g.id === task.goalId);
+  const inputProgress = isInputTask ? dateProgress.inputValue : null;
 
   // Use layout settings from section, but force mobile to minimal/1col
   const layoutMode = isMobile ? 'minimal' : (section?.layoutMode || 'list');
@@ -58,11 +63,21 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
           </div>
           
           <div className="text-xs text-gray-600 mb-2">
-            {task.taskType === 'time' ? 'Time' : 'Count'} • {Math.round(progress)}%
+            {task.taskType === 'time' ? 'Time' : 
+             task.taskType === 'count' ? 'Count' : 
+             'Goal Progress'} • {Math.round(progress)}%
           </div>
           
           <div className="flex flex-wrap gap-1 mt-auto">
-            {task.taskType === 'time' ? (
+            {isInputTask ? (
+              <button
+                onClick={() => onInputClick(task, currentDate)}
+                className="p-1 bg-blue-500 text-white rounded text-xs"
+                title="Log progress"
+              >
+                <TrendingUp size={10} />
+              </button>
+            ) : task.taskType === 'time' ? (
               <>
                 <button
                   onClick={() => toggleTimer(task.id)}
@@ -146,7 +161,15 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
             </div>
             <div className="flex items-center gap-1 text-xs text-gray-600">
               <span>{Math.round(progress)}%</span>
-              {task.taskType === 'time' ? (
+              {isInputTask ? (
+                <button
+                  onClick={() => onInputClick(task, currentDate)}
+                  className="p-1 bg-blue-500 text-white rounded"
+                  title="Log progress"
+                >
+                  <TrendingUp size={10} />
+                </button>
+              ) : task.taskType === 'time' ? (
                 <>
                   <button
                     onClick={() => toggleTimer(task.id)}
@@ -231,7 +254,9 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
               <span className="text-xs">{category.icon}</span>
             )}
             <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-              {task.taskType === 'time' ? 'Time' : 'Count'}
+              {task.taskType === 'time' ? 'Time' : 
+               task.taskType === 'count' ? 'Count' : 
+               'Goal Progress'}
             </span>
           </div>
         </div>
@@ -253,7 +278,12 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
         </div>
         
         <div className="text-xs text-gray-600 mb-3">
-          {task.taskType === 'time' ? (
+          {isInputTask ? (
+            <span>
+              {inputProgress || 0} {task.unit}
+              {linkedGoal && ` → ${linkedGoal.name}`}
+            </span>
+          ) : task.taskType === 'time' ? (
             <span>{timeUtils.formatTime(dateProgress.timeSpent || 0)} / {timeUtils.formatPlannedTime(task.plannedMinutes)}</span>
           ) : (
             <span>{dateProgress.currentCount || 0} / {task.targetCount}</span>
@@ -261,7 +291,15 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
         </div>
         
         <div className="flex justify-start gap-1 flex-wrap">
-          {task.taskType === 'time' ? (
+          {isInputTask ? (
+            <button
+              onClick={() => onInputClick(task, currentDate)}
+              className="p-1.5 bg-blue-500 text-white rounded text-xs"
+              title="Log progress"
+            >
+              <TrendingUp size={12} />
+            </button>
+          ) : task.taskType === 'time' ? (
             <>
               <button
                 onClick={() => toggleTimer(task.id)}
@@ -345,12 +383,19 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
                 <span className="text-xs">{category.icon}</span>
               )}
               <span className="text-xs bg-gray-200 px-2 py-1 rounded flex-shrink-0">
-                {task.taskType === 'time' ? 'Time' : 'Count'}
+                {task.taskType === 'time' ? 'Time' : 
+                 task.taskType === 'count' ? 'Count' : 
+                 'Goal Progress'}
               </span>
             </div>
             
             <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-              {task.taskType === 'time' ? (
+              {isInputTask ? (
+                <span>
+                  {inputProgress || 0} {task.unit}
+                  {linkedGoal && ` → ${linkedGoal.name}`}
+                </span>
+              ) : task.taskType === 'time' ? (
                 <span>{timeUtils.formatTime(dateProgress.timeSpent || 0)} / {timeUtils.formatPlannedTime(task.plannedMinutes)}</span>
               ) : (
                 <span>{dateProgress.currentCount || 0} / {task.targetCount}</span>
@@ -371,7 +416,15 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
           </div>
           
           <div className="flex items-center gap-1 flex-shrink-0">
-            {task.taskType === 'time' ? (
+            {isInputTask ? (
+              <button
+                onClick={() => onInputClick(task, currentDate)}
+                className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                title="Log progress"
+              >
+                <TrendingUp size={12} />
+              </button>
+            ) : task.taskType === 'time' ? (
               <>
                 <button
                   onClick={() => toggleTimer(task.id)}
@@ -459,7 +512,9 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
             <span className="text-lg" title={category.name}>{category.icon}</span>
           )}
           <span className="text-xs bg-gray-200 px-2 py-1 rounded flex-shrink-0">
-            {task.taskType === 'time' ? 'Time' : 'Count'}
+            {task.taskType === 'time' ? 'Time' : 
+             task.taskType === 'count' ? 'Count' : 
+             'Goal Progress'}
           </span>
         </div>
         <div className="text-sm font-medium text-gray-600">
@@ -484,7 +539,40 @@ export const TaskCard = ({ task, onEdit, onDelete, onSkip, section, isDragging, 
       </div>
       
       <div className="flex items-center justify-between">
-        {task.taskType === 'time' ? (
+        {isInputTask ? (
+          <>
+            <div className="flex gap-6 text-sm">
+              <div>
+                <span className="text-gray-600">Goal: </span>
+                <span className="font-medium">{linkedGoal?.name || 'No goal linked'}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Progress: </span>
+                <span className="font-medium text-green-600">
+                  {inputProgress || 0} {task.unit}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => onInputClick(task, currentDate)}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <TrendingUp size={16} />
+                {inputProgress ? 'Update Progress' : 'Log Progress'}
+              </button>
+              <button
+                onClick={() => onSkip(task.id)}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg font-medium bg-orange-600 text-white hover:bg-orange-700"
+                title="Skip today"
+              >
+                <EyeOff size={16} />
+                Skip
+              </button>
+            </div>
+          </>
+        ) : task.taskType === 'time' ? (
           <>
             <div className="flex gap-6 text-sm">
               <div>

@@ -3,7 +3,7 @@ import {useApp} from './AppProvider';
 import { useSectionLogic } from '../hooks/useSectionLogic';
 import TaskCard from './TaskCard';
 
-export const TaskSection = ({ section, tasks, onTaskEdit, onTaskDelete, onTaskSkip, onTaskMove, editMode, onSectionEdit, onSectionMove, onSectionDelete, sectionIndex, totalSections }) => {
+export const TaskSection = ({ section, tasks, onTaskEdit, onTaskDelete, onTaskSkip, onTaskMove, onInputClick, editMode, onSectionEdit, onSectionMove, onSectionDelete, sectionIndex, totalSections }) => {
   const { colors, isMobile, draggedTask, setDragOverSection, dragOverSection } = useApp();
   const { getTasksForSection } = useSectionLogic();
 
@@ -164,6 +164,7 @@ export const TaskSection = ({ section, tasks, onTaskEdit, onTaskDelete, onTaskSk
                 onDelete={onTaskDelete}
                 onSkip={onTaskSkip}
                 editMode={editMode}
+                onInputClick={onInputClick}
                 onDragStart={(task) => {
                   // TaskCard now handles setting draggedTask directly
                 }}

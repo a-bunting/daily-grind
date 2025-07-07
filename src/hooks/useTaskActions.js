@@ -1,171 +1,314 @@
-// src/hooks/useTaskActions.js
-
-import {useApp} from '../components/AppProvider';
+// src/hooks/useTaskActions.js - Updated with Input Task Support
+import { useApp } from '../components/AppProvider';
 import { dateUtils } from '../utils/index';
 
 export const useTaskActions = () => {
-  const { tasks, setTasks, currentDate } = useApp();
+  const { tasks, setTasks, goals, setGoals } = useApp();
 
-  const toggleTimer = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+  // Helper function to calculate goal progress from tasks
+  const calculateGoalProgress = (goalId, updatedTasks = tasks) => {
+    const contributingTasks = updatedTasks.filter(task => 
+      task.goalId === goalId && task.taskType === 'input'
+    );
     
-    setTasks(tasks.map(task => {
+    let totalProgress = 0;
+    contributingTasks.forEach(task => {
+      Object.values(task.dailyProgress || {}).forEach(dayProgress => {
+        if (dayProgress.inputValue) {
+          totalProgress += dayProgress.inputValue;
+        }
+      });
+    });
+    
+    return totalProgress;
+  };
+
+  // Helper function to update linked goal progress
+  const updateLinkedGoalProgress = (taskId, updatedTasks = tasks) => {
+    const task = updatedTasks.find(t => t.id === taskId);
+    if (task && task.goalId) {
+      const newProgress = calculateGoalProgress(task.goalId, updatedTasks);
+      setGoals(prevGoals => 
+        prevGoals.map(goal => 
+          goal.id === task.goalId 
+            ? { ...goal, currentProgress: newProgress }
+            : goal
+        )
+      );
+    }
+  };
+
+  // NEW: Add or update input progress for input tasks
+  const addInputProgress = (taskId, dateString, inputValue) => {
+    const updatedTasks = tasks.map(task => {
       if (task.id === taskId) {
-        const dateProgress = task.dailyProgress[dateString] || { timeSpent: 0, isRunning: false, startTime: null };
+        const updatedTask = {
+          ...task,
+          dailyProgress: {
+            ...task.dailyProgress,
+            [dateString]: {
+              ...task.dailyProgress?.[dateString],
+              inputValue: inputValue,
+              isRunning: false,
+              startTime: null
+            }
+          }
+        };
+        return updatedTask;
+      }
+      return task;
+    });
+    
+    setTasks(updatedTasks);
+    
+    // Update linked goal progress
+    setTimeout(() => updateLinkedGoalProgress(taskId, updatedTasks), 0);
+  };
+
+  // NEW: Remove input progress for a specific date
+  const removeInputProgress = (taskId, dateString) => {
+    const updatedTasks = tasks.map(task => {
+      if (task.id === taskId && task.dailyProgress?.[dateString]) {
         const newDailyProgress = { ...task.dailyProgress };
+        delete newDailyProgress[dateString];
         
-        if (dateProgress.isRunning) {
-          const elapsed = Math.floor((Date.now() - dateProgress.startTime) / 1000);
-          newDailyProgress[dateString] = {
-            timeSpent: dateProgress.timeSpent + elapsed,
+        return {
+          ...task,
+          dailyProgress: newDailyProgress
+        };
+      }
+      return task;
+    });
+    
+    setTasks(updatedTasks);
+    
+    // Update linked goal progress
+    setTimeout(() => updateLinkedGoalProgress(taskId, updatedTasks), 0);
+  };
+
+  // EXISTING: Toggle timer for time tasks
+  const toggleTimer = (taskId) => {
+    const today = dateUtils.getDateString(new Date());
+    
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          const currentProgress = task.dailyProgress?.[today] || {
+            timeSpent: 0,
             isRunning: false,
             startTime: null
           };
-        } else {
-          newDailyProgress[dateString] = {
-            ...dateProgress,
-            isRunning: true,
-            startTime: Date.now()
+          
+          if (currentProgress.isRunning) {
+            // Stop timer
+            const timeSpent = currentProgress.timeSpent + (Date.now() - currentProgress.startTime);
+            return {
+              ...task,
+              dailyProgress: {
+                ...task.dailyProgress,
+                [today]: {
+                  timeSpent: Math.round(timeSpent / 1000) * 1000,
+                  isRunning: false,
+                  startTime: null
+                }
+              }
+            };
+          } else {
+            // Start timer
+            return {
+              ...task,
+              dailyProgress: {
+                ...task.dailyProgress,
+                [today]: {
+                  ...currentProgress,
+                  isRunning: true,
+                  startTime: Date.now()
+                }
+              }
+            };
+          }
+        }
+        return task;
+      });
+    });
+  };
+
+  // EXISTING: Reset timer for time tasks
+  const resetTimer = (taskId) => {
+    const today = dateUtils.getDateString(new Date());
+    
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          const newDailyProgress = { ...task.dailyProgress };
+          delete newDailyProgress[today];
+          
+          return {
+            ...task,
+            dailyProgress: newDailyProgress
           };
         }
-        
-        return { ...task, dailyProgress: newDailyProgress };
-      }
-      return task;
-    }));
+        return task;
+      });
+    });
   };
 
-  const resetTimer = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
-    
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const newDailyProgress = { ...task.dailyProgress };
-        newDailyProgress[dateString] = {
-          timeSpent: 0,
-          isRunning: false,
-          startTime: null,
-          currentCount: 0
-        };
-        
-        return { ...task, dailyProgress: newDailyProgress };
-      }
-      return task;
-    }));
-  };
-
+  // EXISTING: Increment count for count tasks
   const incrementCount = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+    const today = dateUtils.getDateString(new Date());
     
-    setTasks(tasks.map(task => {
-      if (task.id === taskId && task.taskType === 'count') {
-        const dateProgress = task.dailyProgress[dateString] || { currentCount: 0 };
-        const newDailyProgress = { ...task.dailyProgress };
-        newDailyProgress[dateString] = {
-          ...dateProgress,
-          currentCount: (dateProgress.currentCount || 0) + 1
-        };
-        
-        return { ...task, dailyProgress: newDailyProgress };
-      }
-      return task;
-    }));
+    setTasks(prevTasks => {
+        return prevTasks.map(task => {
+            if (task.id === taskId) {
+                const currentProgress = task.dailyProgress?.[today] || {
+                    currentCount: 0,
+                    isRunning: false,
+                    startTime: null
+                };          
+          return {
+            ...task,
+            dailyProgress: {
+              ...task.dailyProgress,
+              [today]: {
+                ...currentProgress,
+                currentCount: currentProgress.currentCount + 1
+              }
+            }
+          };
+        }
+        return task;
+      });
+    });
   };
 
+  // EXISTING: Decrement count for count tasks
   const decrementCount = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+    const today = dateUtils.getDateString(new Date());
     
-    setTasks(tasks.map(task => {
-      if (task.id === taskId && task.taskType === 'count') {
-        const dateProgress = task.dailyProgress[dateString] || { currentCount: 0 };
-        const newDailyProgress = { ...task.dailyProgress };
-        newDailyProgress[dateString] = {
-          ...dateProgress,
-          currentCount: Math.max(0, (dateProgress.currentCount || 0) - 1)
-        };
-        
-        return { ...task, dailyProgress: newDailyProgress };
-      }
-      return task;
-    }));
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          const currentProgress = task.dailyProgress?.[today] || {
+            currentCount: 0,
+            isRunning: false,
+            startTime: null
+          };
+          
+          return {
+            ...task,
+            dailyProgress: {
+              ...task.dailyProgress,
+              [today]: {
+                ...currentProgress,
+                currentCount: Math.max(0, currentProgress.currentCount - 1)
+              }
+            }
+          };
+        }
+        return task;
+      });
+    });
   };
 
+  // EXISTING: Toggle checkbox for count tasks with target 1
   const toggleCheckbox = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+    const today = dateUtils.getDateString(new Date());
     
-    setTasks(tasks.map(task => {
-      if (task.id === taskId && task.taskType === 'count' && task.targetCount === 1) {
-        const dateProgress = task.dailyProgress[dateString] || { currentCount: 0 };
-        const newDailyProgress = { ...task.dailyProgress };
-        newDailyProgress[dateString] = {
-          ...dateProgress,
-          currentCount: dateProgress.currentCount === 1 ? 0 : 1
-        };
-        
-        return { ...task, dailyProgress: newDailyProgress };
-      }
-      return task;
-    }));
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          const currentProgress = task.dailyProgress?.[today] || {
+            currentCount: 0,
+            isRunning: false,
+            startTime: null
+          };
+          
+          return {
+            ...task,
+            dailyProgress: {
+              ...task.dailyProgress,
+              [today]: {
+                ...currentProgress,
+                currentCount: currentProgress.currentCount === 1 ? 0 : 1
+              }
+            }
+          };
+        }
+        return task;
+      });
+    });
   };
 
+  // EXISTING: Skip task for today
   const skipTaskForDay = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+    const today = dateUtils.getDateString(new Date());
     
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const excludedDates = task.excludedDates || [];
-        
-        if (!excludedDates.includes(dateString)) {
-          return { ...task, excludedDates: [...excludedDates, dateString] };
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            excludedDates: [...(task.excludedDates || []), today]
+          };
         }
-      }
-      return task;
-    }));
+        return task;
+      });
+    });
   };
 
+  // EXISTING: Add one-off task for today
   const addOneOffTask = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
+    const today = dateUtils.getDateString(new Date());
     
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const oneOffDates = task.oneOffDates || [];
-        
-        if (!oneOffDates.includes(dateString)) {
-          return { ...task, oneOffDates: [...oneOffDates, dateString] };
+    setTasks(prevTasks => {
+      return prevTasks.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            oneOffDates: [...(task.oneOffDates || []), today]
+          };
         }
-      }
-      return task;
-    }));
+        return task;
+      });
+    });
   };
 
+  // EXISTING: Add singleton task for today
   const addSingletonTask = (taskId) => {
-    const dateString = dateUtils.getDateString(currentDate);
-    
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const oneOffDates = task.oneOffDates || [];
-        
-        if (!oneOffDates.includes(dateString)) {
-          return { ...task, oneOffDates: [...oneOffDates, dateString] };
-        }
-      }
-      return task;
-    }));
+    return addOneOffTask(taskId);
   };
 
+  // EXISTING: Delete task (mark as ended)
   const deleteTask = (taskId) => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayString = dateUtils.getDateString(yesterday);
+    const yesterday = dateUtils.getDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
     
-    setTasks(tasks => tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, endDate: yesterdayString }
-        : task
-    ));
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            endDate: yesterday
+          };
+        }
+        return task;
+      });
+      
+      // Update any linked goal progress
+      const deletedTask = prevTasks.find(t => t.id === taskId);
+      if (deletedTask && deletedTask.goalId) {
+        setTimeout(() => updateLinkedGoalProgress(taskId, updatedTasks), 0);
+      }
+      
+      return updatedTasks;
+    });
   };
 
   return {
+    // NEW input task functions
+    addInputProgress,
+    removeInputProgress,
+    
+    // EXISTING functions
     toggleTimer,
     resetTimer,
     incrementCount,
@@ -177,3 +320,5 @@ export const useTaskActions = () => {
     deleteTask
   };
 };
+
+export default useTaskActions;

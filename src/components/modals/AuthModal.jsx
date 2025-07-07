@@ -1,8 +1,8 @@
 import { LogIn, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
-import {useApp} from './AppProvider';
+import {useApp} from '../AppProvider';
 
-import { mockApiService } from '../utils';
+import { mockApiService } from '../../utils/index';
 
 export const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);

@@ -1,7 +1,7 @@
 import { Plus, Settings, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
-import { DEFAULT_CATEGORIES } from '../constants';
-import {useApp} from './AppProvider';
+import { DEFAULT_CATEGORIES } from '../../constants';
+import {useApp} from '../AppProvider';
 
 export const SettingsModal = ({ isOpen, onClose }) => {
   const { colors, categories, setCategories, isMobile } = useApp();
