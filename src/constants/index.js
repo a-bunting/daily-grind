@@ -57,8 +57,8 @@ export const DEFAULT_SECTIONS = [
   {
     id: 'default',
     name: 'All Tasks',
-    layoutMode: 'list',
-    columnCount: 1,
+    layoutMode: 'compact',
+    columnCount: 2,
     rules: [],
     taskOrder: [],
     showBackground: true

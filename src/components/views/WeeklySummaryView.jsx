@@ -1,9 +1,9 @@
 import { ArrowLeft, BarChart3, Check, Target, TrendingUp, Zap } from 'lucide-react';
-import { DAYS, DAY_ABBREVIATIONS, MONTHS } from '../constants';
-import {useApp} from './AppProvider';
-import { useTaskProgress } from '../hooks/useTaskProgress';
-import { useTaskScheduling } from '../hooks/useTaskScheduling';
-import { dateUtils } from '../utils/index';
+import { DAYS, DAY_ABBREVIATIONS, MONTHS } from '../../constants';
+import {useApp} from '../AppProvider';
+import { useTaskProgress } from '../../hooks/useTaskProgress';
+import { useTaskScheduling } from '../../hooks/useTaskScheduling';
+import { dateUtils } from '../../utils/index';
 
 export const WeeklySummaryView = ({ weekDate, onBack }) => {
   const { colors, isMobile, isTablet, categories, setCurrentDate, setViewMode } = useApp();

@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import {useApp} from './AppProvider';
-import { useTaskProgress } from '../hooks/useTaskProgress';
-import { useTaskScheduling } from '../hooks/useTaskScheduling';
+import {useApp} from '../AppProvider';
+import { useTaskProgress } from '../../hooks/useTaskProgress';
+import { useTaskScheduling } from '../../hooks/useTaskScheduling';
 import { ArrowLeft, TrendingUp, Clock, Target, BarChart3, PieChart, Trophy, Zap, Activity } from 'lucide-react';
-import { achievementDefinitions, calculateAchievementValue } from '../data/AchievementDefinitions';
+import { achievementDefinitions, calculateAchievementValue } from '../../data/AchievementDefinitions';
 
 export const AdvancedStatistics = () => {
   const { 

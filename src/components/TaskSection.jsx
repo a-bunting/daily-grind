@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Edit2, Trash2 } from 'lucide-react';
 import {useApp} from './AppProvider';
 import { useSectionLogic } from '../hooks/useSectionLogic';
 import TaskCard from './TaskCard';
+import { QuickLayoutToolbar } from './QuickLayoutToolbar';
 
 export const TaskSection = ({ section, tasks, onTaskEdit, onTaskDelete, onTaskSkip, onTaskMove, onInputClick, editMode, onSectionEdit, onSectionMove, onSectionDelete, sectionIndex, totalSections }) => {
   const { colors, isMobile, draggedTask, setDragOverSection, dragOverSection } = useApp();
@@ -98,6 +99,7 @@ export const TaskSection = ({ section, tasks, onTaskEdit, onTaskDelete, onTaskSk
           <span className="text-sm text-gray-500">
             {sectionTasks.length} {sectionTasks.length === 1 ? 'task' : 'tasks'}
           </span>
+          <QuickLayoutToolbar section={section} />
         </div>
         
         {editMode && (

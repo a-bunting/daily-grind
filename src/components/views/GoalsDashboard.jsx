@@ -1,9 +1,9 @@
 // GoalsDashboard.jsx - Redesigned with Sidebar and Timeline
 import React, { useState } from 'react';
 import { ArrowLeft, Target, Plus, Edit3, Trash2, Calendar, TrendingUp, Award, BarChart3, Activity, Clock } from 'lucide-react';
-import { useApp } from './AppProvider';
-import { dateUtils } from '../utils/index';
-import GoalModal from './modals/GoalModal';
+import { useApp } from '../AppProvider';
+import { dateUtils } from '../../utils/index';
+import GoalModal from '../modals/GoalModal';
 
 export const GoalsDashboard = ({ onBack }) => {
   const { 

@@ -1,10 +1,10 @@
 import { ArrowLeft, BarChart3, Calendar, Check, Target, TrendingUp, Zap } from 'lucide-react';
-import { DAYS, MONTHS } from '../constants';
-import {useApp} from './AppProvider';
-import { useTaskProgress } from '../hooks/useTaskProgress';
-import { useTaskScheduling } from '../hooks/useTaskScheduling';
-import { dateUtils, timeUtils } from '../utils/index';
-import {YearHeatmap} from './YearHeatmap';
+import { DAYS, MONTHS } from '../../constants';
+import {useApp} from '../AppProvider';
+import { useTaskProgress } from '../../hooks/useTaskProgress';
+import { useTaskScheduling } from '../../hooks/useTaskScheduling';
+import { dateUtils, timeUtils } from '../../utils/index';
+import {YearHeatmap} from '../YearHeatmap';
 
 export const TaskAnalyticsView = ({ task, onBack }) => {
   const { colors, isMobile, isTablet, tasks, categories, setCurrentDate, setViewMode } = useApp();

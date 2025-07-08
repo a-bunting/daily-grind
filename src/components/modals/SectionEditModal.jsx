@@ -1,6 +1,7 @@
 import { Save, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {useApp} from '../AppProvider';
+import { SectionLayoutControls } from '../SectionLayoutControls';
 
 export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete }) => {
   const { colors, isMobile, categories, goals } = useApp();
@@ -93,73 +94,13 @@ export const SectionEditModal = ({ isOpen, onClose, section, onSave, onDelete })
               autoFocus
             />
           </div>
-
-          {/* Layout Settings */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Layout Mode</label>
-            <div className="flex gap-1">
-              {['list', 'compact', 'minimal'].map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => setSectionData(prev => ({ ...prev, layoutMode: mode }))}
-                  className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                    sectionData.layoutMode === mode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Column Count */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Columns</label>
-            <div className="flex gap-1">
-              {[1, 2, 3].map(count => (
-                <button
-                  key={count}
-                  onClick={() => setSectionData(prev => ({ ...prev, columnCount: count }))}
-                  className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                    sectionData.columnCount === count
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {count} Col
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Background Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Section Background</label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSectionData(prev => ({ ...prev, showBackground: true }))}
-                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                  sectionData.showBackground
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                With Background
-              </button>
-              <button
-                onClick={() => setSectionData(prev => ({ ...prev, showBackground: false }))}
-                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                  !sectionData.showBackground
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                No Background
-              </button>
-            </div>
-          </div>
+        <div>
+            <h4 className="text-lg font-medium text-gray-800 mb-3">Layout Settings</h4>
+            <SectionLayoutControls 
+                section={sectionData} 
+                onChange={(updates) => setSectionData(prev => ({ ...prev, ...updates }))}
+            />
+        </div>
 
           {/* Rules */}
           <div>
