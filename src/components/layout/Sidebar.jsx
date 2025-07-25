@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { COLOR_SCHEMES, DAY_ABBREVIATIONS } from '../../constants';
 import { useApp } from '../AppProvider';
 import { dateUtils, timeUtils } from '../../utils/index';
+import { ConnectionStatusBar } from '../database/ConnectionStatusBar';
 
 export const Sidebar = ({ 
   showMobileMenu, 
@@ -263,9 +264,10 @@ export const Sidebar = ({
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
               <div 
-                className="w-8 h-8 rounded-lg bg-white shadow-md flex items-center justify-center"
+                className="w-14 h-14 rounded-lg flex items-center justify-center"
               >
-                <Calendar size={20} style={{ color: colors.primary }} />
+                {/* <Calendar size={20} style={{ color: colors.primary }} /> */}
+                <img src='/icons/logo-small-trans.png' alt="Logo" className="w-14 h-14" />
               </div>
             </div>
             
@@ -298,34 +300,41 @@ export const Sidebar = ({
       </div>
 
       {/* User Section */}
-      <div className="border-b p-4">
+    {/* Updated user section with ConnectionStatusBar */}
+    <div className="border-b p-4">
         {user ? (
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <User size={16} className="text-gray-600" />
-              <span className="text-sm font-medium text-gray-800">{user.username}</span>
+            <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                <User size={16} className="text-gray-600" />
+                <span className="text-sm font-medium text-gray-800">{user.username}</span>
+                </div>
+                <button
+                onClick={handleLogout}
+                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                title="Logout"
+                >
+                <LogOut size={14} className="text-gray-600" />
+                </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-              title="Logout"
-            >
-              <LogOut size={14} className="text-gray-600" />
-            </button>
-          </div>
+            {/* Add ConnectionStatusBar here */}
+            <ConnectionStatusBar />
+            </div>
         ) : (
-          <div className="text-center">
+            <div className="text-center space-y-2">
             <p className="text-sm text-gray-600 mb-2">Sign in to sync your data</p>
             <button
-              onClick={() => setShowAuthModal(true)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors text-sm bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => setShowAuthModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors text-sm bg-blue-600 text-white hover:bg-blue-700"
             >
-              <LogIn size={16} />
-              Sign In
+                <LogIn size={16} />
+                Sign In
             </button>
-          </div>
+            {/* Add ConnectionStatusBar for guests too */}
+            <ConnectionStatusBar />
+            </div>
         )}
-      </div>
+    </div>
 
       {/* Tab Navigation */}
       <div className="border-b px-4 py-2">
@@ -425,13 +434,13 @@ export const Sidebar = ({
           </div>
         )}
         
-        <button
+        {/* <button
           onClick={generateFakeData}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
         >
           <AlertTriangle size={14} />
           Load Test Data
-        </button>
+        </button> */}
         
         <div className="color-dropdown relative">
           <button

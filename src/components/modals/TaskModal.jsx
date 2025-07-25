@@ -71,6 +71,7 @@ export const TaskModal = ({ isOpen, onClose, editingTask, onSave }) => {
   }, [editingTask, isOpen, colors.taskColors, sections]);
 
   const validateNewTask = () => {
+    console.log(categories);
     const errors = {};
     if (!newTask.name.trim()) errors.name = 'Task name is required';
     

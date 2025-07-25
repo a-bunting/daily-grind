@@ -1,4 +1,4 @@
-// Generated utility functions
+// src/utils/index.js - Updated with correct imports and exports
 import { DAY_ABBREVIATIONS, DAYS, MONTHS } from "../constants";
 
 export const dateUtils = {
@@ -140,6 +140,7 @@ export const mockApiService = {
       token: 'demo-jwt-token-' + Date.now(),
       user: {
         id: 1,
+        clientId: 'DemoUser01',
         username: username,
         email: username + '@example.com'
       }
@@ -156,6 +157,7 @@ export const mockApiService = {
       token: 'demo-jwt-token-' + Date.now(),
       user: {
         id: 1,
+        clientId: 'DemoUser01',
         username: username,
         email: email
       }
@@ -200,3 +202,120 @@ export const getScheduleDescription = (task) => {
   }
 };
 
+// Import and export API service and hybrid storage
+export { default as apiService, ApiService } from './apiService';
+
+// Create and export hybrid storage
+class HybridStorage {
+  constructor() {
+    this.isOnline = navigator.onLine;
+    this.isAuthenticated = false;
+    
+    // Check for existing auth token
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      this.isAuthenticated = true;
+    }
+    
+    // Listen for auth changes
+    window.addEventListener('authChanged', (event) => {
+      this.isAuthenticated = event.detail.isAuthenticated;
+    });
+    
+    // Listen for online/offline changes
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      if (this.isAuthenticated) {
+        this.syncFromLocalStorage();
+      }
+    });
+    
+    window.addEventListener('offline', () => {
+      this.isOnline = false;
+    });
+  }
+
+  // Generate unique 10-character client ID
+  generateClientId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 10; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  // Ensure all objects have clientIds
+  ensureClientId(obj) {
+    if (!obj.clientId) {
+      obj.clientId = this.generateClientId();
+    }
+    return obj;
+  }
+
+  // Determine storage method
+  shouldUseAPI() {
+    return this.isOnline && this.isAuthenticated;
+  }
+
+  // Sync any pending localStorage changes to API
+  async syncFromLocalStorage() {
+    if (!this.shouldUseAPI()) return;
+    
+    try {
+      // This would trigger API sync processes
+      console.log('Syncing from localStorage to API...');
+    } catch (error) {
+      console.error('Sync failed:', error);
+    }
+  }
+
+  // Generic data loading
+  async loadData(key, apiMethod, defaultValue = []) {
+    if (this.shouldUseAPI()) {
+      try {
+        const { default: apiService } = await import('./apiService');
+        return await apiMethod.call(apiService);
+      } catch (error) {
+        console.warn(`Failed to load ${key} from API, falling back to localStorage:`, error);
+        const localData = storageUtils.loadFromStorage(`dailyGrind_${key}`, defaultValue);
+        return Array.isArray(localData) ? localData.map(item => this.ensureClientId(item)) : this.ensureClientId(localData);
+      }
+    } else {
+      const localData = storageUtils.loadFromStorage(`dailyGrind_${key}`, defaultValue);
+      return Array.isArray(localData) ? localData.map(item => this.ensureClientId(item)) : this.ensureClientId(localData);
+    }
+  }
+
+  // Specific data methods
+  async loadTasks() {
+    return this.loadData('tasks', async function() {
+      const { default: apiService } = await import('./apiService');
+      return apiService.getTasks();
+    }, []);
+  }
+
+  async loadCategories() {
+    return this.loadData('categories', async function() {
+      const { default: apiService } = await import('./apiService');
+      return apiService.getCategories();
+    }, []);
+  }
+
+  async loadSections() {
+    return this.loadData('sections', async function() {
+      const { default: apiService } = await import('./apiService');
+      return apiService.getSections();
+    }, []);
+  }
+
+  async loadGoals() {
+    return this.loadData('goals', async function() {
+      const { default: apiService } = await import('./apiService');
+      return apiService.getGoals();
+    }, []);
+  }
+}
+
+// Create and export singleton instance
+export const hybridStorage = new HybridStorage();

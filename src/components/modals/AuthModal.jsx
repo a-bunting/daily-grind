@@ -1,8 +1,7 @@
+// src/components/AuthModal.jsx - Updated for real backend
 import { LogIn, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
-import {useApp} from '../AppProvider';
-
-import { mockApiService } from '../../utils/index';
+import { useApp } from '../AppProvider'; // Updated import path
 
 export const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +11,8 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { colors, isMobile } = useApp();
+  // Use real auth methods from AppProvider instead of mockApiService
+  const { colors, isMobile, login, register } = useApp();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,15 +22,22 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }) => {
     try {
       let response;
       if (isLogin) {
-        response = await mockApiService.login(username, password);
+        // Use real login method from hybridStorage
+        response = await login(username, password);
       } else {
-        response = await mockApiService.register(username, email, password);
+        // Use real register method from hybridStorage
+        response = await register(username, email, password);
       }
 
-      onSuccess(response.user);
-      onClose();
+      if (response.success) {
+        onSuccess(response.user);
+        onClose();
+        resetForm();
+      } else {
+        setError(response.error || 'Authentication failed');
+      }
     } catch (error) {
-      setError(error.message);
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -123,6 +130,9 @@ export const AuthModal = ({ isOpen, onClose, onSuccess }) => {
               required
               minLength={6}
             />
+            {!isLogin && (
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+            )}
           </div>
 
           <button

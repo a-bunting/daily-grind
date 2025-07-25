@@ -1,7 +1,37 @@
+// Updated AppProvider integration
+// Add this to your existing AppProvider.jsx:
+
+// Add these imports at the top
+// 
+
+// Add these state variables
+
+
+// Add this useEffect
+/*
+
+*/
+
+// Replace localStorage loading with hybrid loading in loadAllSettings:
+/*
+
+*/
+
+// Add authentication methods to context value:
+/*
+const value = {
+  // ... existing values
+  
+
+};
+*/
+
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { COLOR_SCHEMES, DEFAULT_CATEGORIES, DEFAULT_SECTIONS } from '../constants';
 import { storageUtils } from '../utils';
 import { AppLoadingScreen } from './AppLoadingScreen'; // Add this import
+import hybridStorage from '../utils/hybridStorage';
 
 const AppContext = createContext();
 
@@ -25,6 +55,8 @@ const AppProvider = ({ children }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState(hybridStorage.getConnectionStatus());
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'error'
 
   // Drag and drop states
   const [draggedTask, setDraggedTask] = useState(null);
@@ -45,88 +77,124 @@ const AppProvider = ({ children }) => {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const loadAllSettings = async () => {
-      const startTime = Date.now();
+    // const loadAllSettings = async () => {
+    //   const startTime = Date.now();
       
-      try {
-        const savedTasks = storageUtils.loadFromStorage('dailyGrind_tasks', []);
-        const savedCategories = storageUtils.loadFromStorage('dailyGrind_categories', DEFAULT_CATEGORIES);
-        const savedSections = storageUtils.loadFromStorage('dailyGrind_sections', DEFAULT_SECTIONS);
-        const savedGoals = storageUtils.loadFromStorage('dailyGrind_goals', []);
-        const savedColorScheme = storageUtils.loadFromStorage('dailyGrind_colorScheme', 'indigo');
-        const savedLayoutMode = storageUtils.loadFromStorage('dailyGrind_layoutMode', 'list');
-        const savedColumnCount = storageUtils.loadFromStorage('dailyGrind_columnCount', 1);
-        const savedUser = storageUtils.loadFromStorage('dailyGrind_user', null);
+    //   try {
+    //     const savedTasks = storageUtils.loadFromStorage('dailyGrind_tasks', []);
+    //     const savedCategories = storageUtils.loadFromStorage('dailyGrind_categories', DEFAULT_CATEGORIES);
+    //     const savedSections = storageUtils.loadFromStorage('dailyGrind_sections', DEFAULT_SECTIONS);
+    //     const savedGoals = storageUtils.loadFromStorage('dailyGrind_goals', []);
+    //     const savedColorScheme = storageUtils.loadFromStorage('dailyGrind_colorScheme', 'indigo');
+    //     const savedLayoutMode = storageUtils.loadFromStorage('dailyGrind_layoutMode', 'list');
+    //     const savedColumnCount = storageUtils.loadFromStorage('dailyGrind_columnCount', 1);
+    //     const savedUser = storageUtils.loadFromStorage('dailyGrind_user', null);
 
-        // NEW: Load UI state
-        const savedViewMode = storageUtils.loadFromStorage('dailyGrind_viewMode', 'day');
-        const savedEditMode = storageUtils.loadFromStorage('dailyGrind_editMode', false);
-        const savedCurrentDate = storageUtils.loadFromStorage('dailyGrind_currentDate', null);
-        const savedSelectedGoalFilter = storageUtils.loadFromStorage('dailyGrind_selectedGoalFilter', null);
-        const savedSelectedCategoryFilter = storageUtils.loadFromStorage('dailyGrind_selectedCategoryFilter', null);
-        const savedShowCompletedTasks = storageUtils.loadFromStorage('dailyGrind_showCompletedTasks', true);
-        const savedTaskSortOrder = storageUtils.loadFromStorage('dailyGrind_taskSortOrder', 'manual');
-        const savedSidebarCollapsed = storageUtils.loadFromStorage('dailyGrind_sidebarCollapsed', false);
-        const savedShowAllTasks = storageUtils.loadFromStorage('dailyGrind_showAllTasks', false);
-        const savedLastViewedDate = storageUtils.loadFromStorage('dailyGrind_lastViewedDate', null);
-        const savedSelectedTaskFilter = storageUtils.loadFromStorage('dailyGrind_selectedTaskFilter', 'all');
-        const savedSectionExpandedState = storageUtils.loadFromStorage('dailyGrind_sectionExpandedState', {});
-        const savedSidebarCompactMode = storageUtils.loadFromStorage('dailyGrind_sidebarCompactMode', false);
-        const savedSidebarActiveTab = storageUtils.loadFromStorage('dailyGrind_sidebarActiveTab', 'tasks');
+    //     // NEW: Load UI state
+    //     const savedViewMode = storageUtils.loadFromStorage('dailyGrind_viewMode', 'day');
+    //     const savedEditMode = storageUtils.loadFromStorage('dailyGrind_editMode', false);
+    //     const savedCurrentDate = storageUtils.loadFromStorage('dailyGrind_currentDate', null);
+    //     const savedSelectedGoalFilter = storageUtils.loadFromStorage('dailyGrind_selectedGoalFilter', null);
+    //     const savedSelectedCategoryFilter = storageUtils.loadFromStorage('dailyGrind_selectedCategoryFilter', null);
+    //     const savedShowCompletedTasks = storageUtils.loadFromStorage('dailyGrind_showCompletedTasks', true);
+    //     const savedTaskSortOrder = storageUtils.loadFromStorage('dailyGrind_taskSortOrder', 'manual');
+    //     const savedSidebarCollapsed = storageUtils.loadFromStorage('dailyGrind_sidebarCollapsed', false);
+    //     const savedShowAllTasks = storageUtils.loadFromStorage('dailyGrind_showAllTasks', false);
+    //     const savedLastViewedDate = storageUtils.loadFromStorage('dailyGrind_lastViewedDate', null);
+    //     const savedSelectedTaskFilter = storageUtils.loadFromStorage('dailyGrind_selectedTaskFilter', 'all');
+    //     const savedSectionExpandedState = storageUtils.loadFromStorage('dailyGrind_sectionExpandedState', {});
+    //     const savedSidebarCompactMode = storageUtils.loadFromStorage('dailyGrind_sidebarCompactMode', false);
+    //     const savedSidebarActiveTab = storageUtils.loadFromStorage('dailyGrind_sidebarActiveTab', 'tasks');
 
-        // Apply saved data
-        if (savedTasks.length > 0) setTasks(savedTasks);
-        if (savedCategories.length > 0) setCategories(savedCategories);
-        if (savedGoals.length > 0) setGoals(savedGoals);
-        setSidebarCompactMode(savedSidebarCompactMode);
-        setSidebarActiveTab(savedSidebarActiveTab);
-        setCurrentColorScheme(savedColorScheme);
-        setLayoutMode(savedLayoutMode);
-        setColumnCount(savedColumnCount > 3 ? 3 : savedColumnCount);
-        if (savedUser) setUser(savedUser);
+    //     // Apply saved data
+    //     if (savedTasks.length > 0) setTasks(savedTasks);
+    //     if (savedCategories.length > 0) setCategories(savedCategories);
+    //     if (savedGoals.length > 0) setGoals(savedGoals);
+    //     setSidebarCompactMode(savedSidebarCompactMode);
+    //     setSidebarActiveTab(savedSidebarActiveTab);
+    //     setCurrentColorScheme(savedColorScheme);
+    //     setLayoutMode(savedLayoutMode);
+    //     setColumnCount(savedColumnCount > 3 ? 3 : savedColumnCount);
+    //     if (savedUser) setUser(savedUser);
 
-        if (savedSections && savedSections.length > 0) {
-          const migratedSections = migrateSectionsWithLayoutProps(savedSections);
-          setSections(migratedSections);
-        } else {
-          const migratedDefaults = migrateSectionsWithLayoutProps(DEFAULT_SECTIONS);
-          setSections(migratedDefaults);
-        }
+    //     if (savedSections && savedSections.length > 0) {
+    //       const migratedSections = migrateSectionsWithLayoutProps(savedSections);
+    //       setSections(migratedSections);
+    //     } else {
+    //       const migratedDefaults = migrateSectionsWithLayoutProps(DEFAULT_SECTIONS);
+    //       setSections(migratedDefaults);
+    //     }
 
-        // NEW: Apply saved UI state
-        setViewMode(savedViewMode);
-        setEditMode(savedEditMode);
-        setSelectedGoalFilter(savedSelectedGoalFilter);
-        setSelectedCategoryFilter(savedSelectedCategoryFilter);
-        setShowCompletedTasks(savedShowCompletedTasks);
-        setTaskSortOrder(savedTaskSortOrder);
-        setSidebarCollapsed(savedSidebarCollapsed);
-        setShowAllTasks(savedShowAllTasks);
-        setLastViewedDate(savedLastViewedDate);
-        setSelectedTaskFilter(savedSelectedTaskFilter);
-        setSectionExpandedState(savedSectionExpandedState);
+    //     // NEW: Apply saved UI state
+    //     setViewMode(savedViewMode);
+    //     setEditMode(savedEditMode);
+    //     setSelectedGoalFilter(savedSelectedGoalFilter);
+    //     setSelectedCategoryFilter(savedSelectedCategoryFilter);
+    //     setShowCompletedTasks(savedShowCompletedTasks);
+    //     setTaskSortOrder(savedTaskSortOrder);
+    //     setSidebarCollapsed(savedSidebarCollapsed);
+    //     setShowAllTasks(savedShowAllTasks);
+    //     setLastViewedDate(savedLastViewedDate);
+    //     setSelectedTaskFilter(savedSelectedTaskFilter);
+    //     setSectionExpandedState(savedSectionExpandedState);
         
-        // Restore current date if saved (useful for returning to same day)
-        if (savedCurrentDate) {
-          setCurrentDate(new Date(savedCurrentDate));
-        }
+    //     // Restore current date if saved (useful for returning to same day)
+    //     if (savedCurrentDate) {
+    //       setCurrentDate(new Date(savedCurrentDate));
+    //     }
 
-        // Ensure minimum 1 second loading time
-        const elapsedTime = Date.now() - startTime;
-        const minimumLoadTime = 1200; // 1 second
-        const remainingTime = Math.max(0, minimumLoadTime - elapsedTime);
+    //     // Ensure minimum 1 second loading time
+    //     const elapsedTime = Date.now() - startTime;
+    //     const minimumLoadTime = 1200; // 1 second
+    //     const remainingTime = Math.max(0, minimumLoadTime - elapsedTime);
         
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
+    //     await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-      } catch (error) {
-        console.error('Error loading settings:', error);
-        // Still wait minimum time even on error
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, 1200 - elapsedTime);
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      } finally {
-        setIsInitialLoading(false);
-      }
+    //   } catch (error) {
+    //     console.error('Error loading settings:', error);
+    //     // Still wait minimum time even on error
+    //     const elapsedTime = Date.now() - startTime;
+    //     const remainingTime = Math.max(0, 1200 - elapsedTime);
+    //     await new Promise(resolve => setTimeout(resolve, remainingTime));
+    //   } finally {
+    //     setIsInitialLoading(false);
+    //   }
+    // };
+
+    const loadAllSettings = async () => {
+        const startTime = Date.now();
+        
+        try {
+            // Load data using hybrid storage
+            const [savedTasks, savedCategories, savedSections, savedGoals] = await Promise.all([
+            hybridStorage.loadTasks(),
+            hybridStorage.loadCategories(),
+            hybridStorage.loadSections(),
+            hybridStorage.loadGoals()
+            ]);
+
+            // Load UI preferences from localStorage (these stay local)
+            const savedColorScheme = storageUtils.loadFromStorage('dailyGrind_colorScheme', 'indigo');
+            const savedLayoutMode = storageUtils.loadFromStorage('dailyGrind_layoutMode', 'list');
+            // ... other UI preferences
+
+            // Apply loaded data
+            if (savedTasks.length > 0) setTasks(savedTasks);
+            if (savedCategories.length > 0) setCategories(savedCategories);
+            if (savedSections.length > 0) setSections(savedSections);
+            if (savedGoals.length > 0) setGoals(savedGoals);
+            
+            // Apply UI settings
+            setCurrentColorScheme(savedColorScheme);
+            setLayoutMode(savedLayoutMode);
+            // ... other UI settings
+
+            // ... rest of loading logic
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        } finally {
+            setIsInitialLoading(false);
+        }
     };
 
     loadAllSettings();
@@ -155,6 +223,22 @@ const AppProvider = ({ children }) => {
         storageUtils.saveToStorage('dailyGrind_sidebarActiveTab', sidebarActiveTab);
     }
 }, [sidebarActiveTab, isInitialLoading]);
+
+useEffect(() => {
+    const updateConnectionStatus = () => {
+        setConnectionStatus(hybridStorage.getConnectionStatus());
+    };
+
+    window.addEventListener('authChanged', updateConnectionStatus);
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+
+    return () => {
+        window.removeEventListener('authChanged', updateConnectionStatus);
+        window.removeEventListener('online', updateConnectionStatus);
+        window.removeEventListener('offline', updateConnectionStatus);
+    };
+}, []);
 
   useEffect(() => {
     if (!isInitialLoading) {
@@ -465,7 +549,22 @@ const AppProvider = ({ children }) => {
     sectionExpandedState, setSectionExpandedState,
     toggleSectionExpanded,
     isSectionExpanded,
-    clearAllFilters
+    clearAllFilters,
+    
+      // Authentication
+    login: hybridStorage.login.bind(hybridStorage),
+    register: hybridStorage.register.bind(hybridStorage),
+    logout: hybridStorage.logout.bind(hybridStorage),
+    
+    // Connection status
+    connectionStatus,
+    syncStatus,
+    setSyncStatus,
+    
+    // Storage methods
+    saveTask: hybridStorage.saveTask.bind(hybridStorage),
+    updateProgress: hybridStorage.updateProgress.bind(hybridStorage),
+
   };
 
   return React.createElement(AppContext.Provider, { value }, [

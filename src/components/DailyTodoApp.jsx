@@ -29,6 +29,11 @@ import { SettingsModal } from './modals/SettingsModal';
 import InputProgressModal from './modals/InputProgressModal';
 import GoalModal from './modals/GoalModal';
 
+import { OfflineIndicator } from './database/OfflineIndicator';
+import { ConnectionStatusBar } from './database/ConnectionStatusBar';
+import { SyncManager } from './database/SyncManager';
+import { DataMigrationModal } from './modals/DataMigrationModal';
+
 export const DailyTodoApp = () => {
   const {
     tasks, setTasks,
@@ -47,7 +52,8 @@ export const DailyTodoApp = () => {
     selectedCategoryFilter, 
     selectedTaskFilter,
     updateGoal, 
-    deleteGoal, addGoal
+    deleteGoal, addGoal, saveTask,
+    connectionStatus
   } = useApp();
 
   // UI State
@@ -64,6 +70,7 @@ export const DailyTodoApp = () => {
   const [inputModalDate, setInputModalDate] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
 
   // Hooks
   const { isTaskScheduledForDate } = useTaskScheduling();
@@ -163,58 +170,49 @@ export const DailyTodoApp = () => {
     }
   };
 
-  const handleTaskSave = (taskData, editingTask) => {
-    if (editingTask) {
-      setTasks(tasks.map(task => 
-        task.id === editingTask.id 
-          ? {
-              ...task,
-              name: taskData.name.trim(),
-              taskType: taskData.taskType,
-              plannedMinutes: taskData.taskType === 'time' ? parseFloat(taskData.plannedMinutes) : null,
-              targetCount: taskData.taskType === 'count' ? parseInt(taskData.targetCount) : null,
-              selectedDays: taskData.selectedDays,
-              startDate: taskData.startDate,
-              endDate: taskData.endDate || null,
-              color: taskData.color,
-              categoryId: taskData.categoryId,
-              scheduleType: taskData.scheduleType,
-              monthlyTypes: taskData.monthlyTypes,
-              monthlyDays: taskData.monthlyDays,
-              intervalWeeks: taskData.intervalWeeks,
-              sectionId: taskData.sectionId,
-              goalId: taskData.goalId,
-              unit: taskData.unit,
-            }
-          : task
-      ));
-    } else {
-      const task = {
-        id: Date.now(),
+  const handleTaskSave = async (taskData, editingTask) => {
+    try {
+        
+        // Prepare the task data in the correct format
+        const taskToSave = {
+        ...taskData,
         name: taskData.name.trim(),
-        taskType: taskData.taskType,
         plannedMinutes: taskData.taskType === 'time' ? parseFloat(taskData.plannedMinutes) : null,
         targetCount: taskData.taskType === 'count' ? parseInt(taskData.targetCount) : null,
-        selectedDays: taskData.selectedDays,
-        dailyProgress: {},
-        excludedDates: [],
-        oneOffDates: [],
-        startDate: taskData.startDate,
         endDate: taskData.endDate || null,
-        color: taskData.color,
-        categoryId: taskData.categoryId,
-        scheduleType: taskData.scheduleType,
-        monthlyTypes: taskData.monthlyTypes,
-        monthlyDays: taskData.monthlyDays,
-        intervalWeeks: taskData.intervalWeeks,
-        sectionId: taskData.sectionId,
-        goalId: taskData.goalId,
-        unit: taskData.unit,
-      };
-      setTasks([...tasks, task]);
+        dailyProgress: editingTask ? editingTask.dailyProgress : {}, // Preserve existing progress
+        excludedDates: editingTask ? editingTask.excludedDates : [],
+        oneOffDates: editingTask ? editingTask.oneOffDates : [],
+        };
+
+        console.log('Saving task:', taskToSave);
+
+        if (editingTask) {
+            //  Update existing task
+            taskToSave.id = editingTask.id;
+            const savedTask = await saveTask(taskToSave, false); // false = not new
+            
+            // Update local state
+            setTasks(prev => prev.map(task => 
+                task.id === editingTask.id ? savedTask : task
+            ));
+        } else {
+            // Create new task
+            taskToSave.id = Date.now(); // Temporary ID
+            const savedTask = await saveTask(taskToSave, true); // true = new task
+            
+            // Update local state
+            setTasks(prev => [...prev, savedTask]);
+        }
+        
+        console.log('Task saved successfully!');
+        setEditingTask(null);
+        
+    } catch (error) {
+        console.error('Failed to save task:', error);
+        alert('Failed to save task. Please try again.');
     }
-    setEditingTask(null);
-  };
+    };
 
   const handleSectionSave = (sectionData) => {
     if (editingSection) {
@@ -381,6 +379,9 @@ export const DailyTodoApp = () => {
 
   return (
     <MainLayout>
+
+
+
       {/* Mobile overlay */}
       {showMobileMenu && (isMobile || isTablet) && (
         <div 
@@ -388,6 +389,12 @@ export const DailyTodoApp = () => {
           onClick={() => setShowMobileMenu(false)}
         ></div>
       )}
+
+      {/* 1. Add OfflineIndicator at the very top */}
+      <OfflineIndicator />
+
+      {/* 2. Add invisible SyncManager */}
+      <SyncManager />
 
       {/* Sidebar */}
       <Sidebar 
@@ -432,6 +439,7 @@ export const DailyTodoApp = () => {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col relative z-10 ${!isMobile && !isTablet ? 'ml-80' : ''}`}>
+
         {/* Header */}
         <MainHeader 
           showMobileMenu={showMobileMenu}
@@ -498,6 +506,26 @@ export const DailyTodoApp = () => {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <AuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(user) => {
+            setUser(user);
+            setShowMigrationModal(true); // Show migration modal after successful auth
+        }}
+      />
+         
+      {/* 4. Add DataMigrationModal */}
+      <DataMigrationModal 
+        isOpen={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+        onComplete={() => {
+          setShowMigrationModal(false);
+          // Optionally reload data
+          window.location.reload();
+        }}
       />
 
       <AuthModal
